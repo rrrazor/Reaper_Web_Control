@@ -414,6 +414,7 @@
                 }
 
                 function enterBPM() {
+                    wwr_req("41821;41820");
                     var curr_bpm = currBPM();
                     var new_bpm = prompt("Enter new BPM", curr_bpm);
                     if (new_bpm == null)
@@ -441,7 +442,8 @@
                 button.hidden = false;
                 var commands =
                     // "41820" // Move edit cursor to previous tempo or time signature change
-                    "41130"; // Tempo: Decrease current project tempo 01 BPM
+                    "41821;41820"
+                    + ";41130"; // Tempo: Decrease current project tempo 01 BPM
                 button.onmousedown = mouseDownEventActivate(commands, button);
                 button.onmouseup = button_up(button);
                 tempoContent.appendChild(button_el);
@@ -460,7 +462,8 @@
                 button.disabled = false;
                 commands =
                     // "41820" // Move edit cursor to previous tempo or time signature change
-                    "41129"; // Tempo: Increase current project tempo 01 BPM
+                    "41821;41820"
+                    + ";41129"; // Tempo: Increase current project tempo 01 BPM
                 button.onmousedown = mouseDownEventActivate(commands, button);
                 button.onmouseup = button_up(button);
                 tempoContent.appendChild(button_el);
