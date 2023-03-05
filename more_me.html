@@ -414,7 +414,7 @@
 
                 button_el = document.getElementById("button").cloneNode(true);
                 button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "▶︎";
+                button.textContent = "▶";
                 button.disabled = false;
                 button.onmousedown = mouseDownEventHandler("40044"); // Transport: Play/stop
                 controlsContent.appendChild(button_el);
@@ -515,11 +515,11 @@
             if (button_el) {
                 var button = button_el.getElementsByClassName("track_button")[0];
                 if (playstate & 1) {
-                    button.textContent = "◼︎";
+                    button.textContent = "⏹";
                     button.style.backgroundColor = "tomato";
                 }
                 else {
-                    button.textContent = "▶︎";
+                    button.textContent = "▶";
                     button.style.backgroundColor = "green";
                 }
             }
