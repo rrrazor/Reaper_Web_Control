@@ -87,7 +87,7 @@
         wwr_start();
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
-            selectInputIdx = 0, selectInputOld = -1, trackPanAr = [], trackMutedAr = [];
+            selectInputIdx = 0, selectInputOld = -1, trackPanAr = [], trackMutedAr = [], trackHasFxAr = [];
 
         function mouseDownEventActivate(msg, button) {
             return function (e) {
@@ -248,6 +248,8 @@
                         }
                         else { trackMutedAr[idx] = 0; }
 
+                        trackHasFxAr[idx] = tok[3] & 4 ? 1 : 0;
+
                         break;
 
                     case "SEND":
@@ -342,7 +344,7 @@
                 faderContent.appendChild(cloneFader);
                 instructions.style.display = "none";
 
-                // adding the button
+                // adding the buttons
                 var button_el = document.getElementById("button").cloneNode(true);
                 button_el.getElementsByClassName("track_button")[0].textContent = "FX";
                 buttonsContent.appendChild(button_el);
@@ -354,7 +356,45 @@
                 button_el = document.getElementById("button").cloneNode(true);
                 button_el.getElementsByClassName("track_button")[0].textContent = "Pan";
                 buttonsContent.appendChild(button_el);
+
+                // tempo
+                var tempoContent = document.getElementById("tempo");
+
+                function button_up(button) {
+                    return function (e) {
+                        button.style.backgroundColor = "gray";
+                        button.value = 0;
+                        return false;
+                    }
+                }
+
+                button_el = document.getElementById("button").cloneNode(true);
+                var button = button_el.getElementsByClassName("track_button")[0];
+                button.textContent = "▼";
+                button.disabled = false;
+                var commands =
+                    "41820" // Move edit cursor to previous tempo or time signature change
+                    + ";41130"; // Tempo: Decrease current project tempo 01 BPM
+                button.onmousedown = mouseDownEventActivate(commands, button);
+                button.onmouseup = button_up(button);
+                tempoContent.appendChild(button_el);
+
+                button_el = document.getElementById("button").cloneNode(true);
+                button_el.getElementsByClassName("track_button")[0].textContent = "BPM";
+                tempoContent.appendChild(button_el);
+
+                button_el = document.getElementById("button").cloneNode(true);
+                button = button_el.getElementsByClassName("track_button")[0];
+                button.textContent = "▲";
+                button.disabled = false;
+                commands =
+                    "41820" // Move edit cursor to previous tempo or time signature change
+                    + ";41129"; // Tempo: Increase current project tempo 01 BPM
+                button.onmousedown = mouseDownEventActivate(commands, button);
+                button.onmouseup = button_up(button);
+                tempoContent.appendChild(button_el);
             }
+
 
 
             //----------------------------------
@@ -387,20 +427,24 @@
                     // FX
                     var button_el = buttonsContent.childNodes[0];
                     var button = button_el.getElementsByClassName("track_button")[0];
-                    button.disabled = false;
+                    if (trackHasFxAr[selectInputIdx]) {
+                        button.disabled = false;
 
-                    var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
-                    // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
-                    commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
-                    commands += ";41749"; // Open/close UI for FX #1 on last touched track
-
-                    button.onmousedown = mouseDownEventActivate(commands, button);
+                        var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
+                        // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
+                        commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
+                        commands += ";41749"; // Open/close UI for FX #1 on last touched track
+                        button.onmousedown = mouseDownEventActivate(commands, button);
+                    }
+                    else
+                        button.disabled = true;
 
                     // Mute
                     button_el = buttonsContent.childNodes[1];
                     button = button_el.getElementsByClassName("track_button")[0];
                     button.disabled = false;
-                    button.onmousedown = mouseDownEventActivate("SET/TRACK/" + selectInputIdx + "/MUTE/-1", button); // sets mute for track. if value is <0, mute is toggled
+                    button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
+                    button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/MUTE/-1"); // sets mute for track. if value is <0, mute is toggled
 
                     // pan
                     var pan_val = Math.floor(Math.abs(trackPanAr[selectInputIdx] * 100));
@@ -416,6 +460,7 @@
                         pan.appendChild(cloneFader);
                     }
 
+                    button.style.backgroundColor = pan_val == 0 ? "green" : "gray";
                     button.ondblclick = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/PAN/0");
                 }
             }
@@ -522,9 +567,12 @@
         <option>Select your input track...</option>
     </select><br><br>
 
-    <div id="buttons"></div>
+    <div id="buttons" style="height: 100px;"></div>
 
     <div id="pan"></div>
+    <hr class="rounded">
+
+    <div id="tempo" style="height: 100px;"></div>
 
     <div id="backLoad" style="display:none">
 
