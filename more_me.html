@@ -49,6 +49,19 @@
             -webkit-appearance: none;
         }
 
+        #markerSelect {
+            width: 100%;
+            color: #A9ABAB;
+            background-color: #262626;
+            border: none;
+            font-size: 1.5em;
+            padding: 3%;
+            -webkit-border-radius: 20px;
+            -moz-border-radius: 20px;
+            border-radius: 20px;
+            -webkit-appearance: none;
+        }
+
         select option:first-child {
             color: #555555;
             font-style: italic;
@@ -83,12 +96,13 @@
 
     <script type="text/javascript">
 
-        wwr_req_recur("NTRACK;TRACK;BEATPOS;MARKER", 10);
+        wwr_req_recur("NTRACK;TRACK;BEATPOS;", 10);
+        wwr_req("MARKER");
         wwr_start();
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
-            selectInputIdx = 0, selectInputOld = -1, trackPanAr = [], trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0,
-            pos_beat = 0, pos_beat_prev = 0, playstate = 0;
+            selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
+            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1;
 
         function mouseDownEventActivate(msg, button) {
             return function (e) {
@@ -202,6 +216,15 @@
             }, false);
         }
 
+        function toColor(num) {
+            num >>>= 0;
+            var b = num & 0xFF,
+                g = (num & 0xFF00) >>> 8,
+                r = (num & 0xFF0000) >>> 16,
+                a = (num & 0xF000000) >>> 24;
+            return a == 0 ? "" : "rgba(" + [r, g, b, a].join(",") + ")";
+        }
+
         function wwr_onreply(results) {
             var resultsDisplay = document.getElementById("_results");
             if (resultsDisplay != null) {
@@ -240,16 +263,14 @@
                             trackColoursAr[idx] = tok[13];
                         }
 
-                        if (tok[5] != trackPanAr[idx]) {
-                            trackPanAr[idx] = tok[5];
-                        }
-
                         if (tok[3] & 8) {
                             trackMutedAr[idx] = 1;
                         }
                         else { trackMutedAr[idx] = 0; }
 
                         trackHasFxAr[idx] = tok[3] & 4 ? 1 : 0;
+
+                        trackRecAr[idx] = tok[3] & 64 ? 1 : 0;
 
                         break;
 
@@ -263,13 +284,18 @@
                             else { receiveMuteAr[f] = 0 }
                         }
                         break;
-                    
+
                     case "BEATPOS":
                         pos_sec_prev = pos_sec;
                         pos_beat_prev = pos_beat;
                         pos_sec = tok[2];
                         pos_beat = tok[3];
                         playstate = tok[1];
+                        break;
+
+                    case "MARKER":
+                        var marker = [tok[1], tok[2], tok[3], toColor(tok[4])];
+                        MarkersAr.push(marker);
                         break;
                 }
             }
@@ -335,6 +361,7 @@
             var buttonsContent = document.getElementById("buttons");
             var tempoContent = document.getElementById("tempo");
             var controlsContent = document.getElementById("controls");
+            var markerSelect = document.getElementById("markerSelect");
             if (drawnReceives < drawnReceivesDone || drawnReceives == null) {
                 if (receivesContent.lastChild) { receivesContent.removeChild(receivesContent.lastChild) }
                 if (buttonsContent.lastChild) { buttonsContent.removeChild(buttonsContent.lastChild) }
@@ -365,7 +392,7 @@
                 buttonsContent.appendChild(button_el);
 
                 button_el = document.getElementById("button").cloneNode(true);
-                button_el.getElementsByClassName("track_button")[0].textContent = "Pan";
+                button_el.getElementsByClassName("track_button")[0].textContent = "Rec";
                 buttonsContent.appendChild(button_el);
 
                 // tempo
@@ -379,7 +406,7 @@
 
                 button_el = document.getElementById("button").cloneNode(true);
                 var button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "▼";
+                button.textContent = "➖";
                 button.disabled = false;
                 var commands =
                     // "41820" // Move edit cursor to previous tempo or time signature change
@@ -394,7 +421,7 @@
 
                 button_el = document.getElementById("button").cloneNode(true);
                 button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "▲";
+                button.textContent = "➕";
                 button.disabled = false;
                 commands =
                     // "41820" // Move edit cursor to previous tempo or time signature change
@@ -414,7 +441,7 @@
 
                 button_el = document.getElementById("button").cloneNode(true);
                 button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "▶";
+                button.textContent = "▶️";
                 button.disabled = false;
                 button.onmousedown = mouseDownEventHandler("40044"); // Transport: Play/stop
                 controlsContent.appendChild(button_el);
@@ -454,47 +481,58 @@
                     selectInputIdx = trackNameAr.indexOf(selectChoice);
                     selectInputOld = selectChoice;
                 }
+                if (selectInputIdx == -1) {
+                    for (i = 0; i < buttonsContent.childElementCount; ++i) {
+                        var button = buttonsContent.childNodes[i].getElementsByClassName("track_button")[0];
+                        button.disabled = true
+                        button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
+                    }
+                }
+                else {
+                    // activate the elements
+                    if (selectInputIdx != -1) {
+                        // FX
+                        var button_el = buttonsContent.childNodes[0];
+                        var button = button_el.getElementsByClassName("track_button")[0];
+                        if (trackHasFxAr[selectInputIdx]) {
+                            button.disabled = false;
 
-                // activate the elements
-                if (selectInputIdx != -1) {
-                    // FX
-                    var button_el = buttonsContent.childNodes[0];
-                    var button = button_el.getElementsByClassName("track_button")[0];
-                    if (trackHasFxAr[selectInputIdx]) {
+                            var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
+                            // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
+                            commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
+                            commands += ";41749"; // Open/close UI for FX #1 on last touched track
+                            button.onmousedown = mouseDownEventActivate(commands, button);
+                        }
+                        else
+                            button.disabled = true;
+
+                        // Mute
+                        button_el = buttonsContent.childNodes[1];
+                        button = button_el.getElementsByClassName("track_button")[0];
                         button.disabled = false;
+                        button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
+                        button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/MUTE/-1"); // sets mute for track. if value is <0, mute is toggled
 
-                        var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
-                        // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
-                        commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
-                        commands += ";41749"; // Open/close UI for FX #1 on last touched track
-                        button.onmousedown = mouseDownEventActivate(commands, button);
+                        // rec
+                        button_el = buttonsContent.childNodes[2];
+                        button = button_el.getElementsByClassName("track_button")[0];
+                        button.disabled = false;
+                        button.textContent = "Rec";
+                        button.style.backgroundColor = trackRecAr[selectInputIdx] == 1 ? "tomato" : "grey";
+                        button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/RECARM/-1"); // sets record arm enabled for track. if value is <0, record arm enabled is toggled
                     }
-                    else
-                        button.disabled = true;
+                }
 
-                    // Mute
-                    button_el = buttonsContent.childNodes[1];
-                    button = button_el.getElementsByClassName("track_button")[0];
-                    button.disabled = false;
-                    button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
-                    button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/MUTE/-1"); // sets mute for track. if value is <0, mute is toggled
-
-                    // pan
-                    var pan_val = Math.floor(Math.abs(trackPanAr[selectInputIdx] * 100));
-                    var pan_str = pan_val == 0 ? "center" : (pan_val + "%" + (trackPanAr[selectInputIdx] < 0 ? "L" : "R"));
-
-                    button_el = buttonsContent.childNodes[2];
-                    button = button_el.getElementsByClassName("track_button")[0];
-                    button.disabled = false;
-                    button.textContent = "Pan: " + pan_str;
-
-                    var pan = document.getElementById("pan");
-                    if (pan.childElementCount == 0) {
-                        pan.appendChild(cloneFader);
+                // enable and fill the marker selector
+                markerSelect.hidden = false;
+                if (markerSelect.options.length == 1) {
+                    for (x = 0; x < MarkersAr.length; x++) {
+                        var option = document.createElement("option");
+                        [name, id, position, color] = MarkersAr[x];
+                        option.text = id + ". " + name;
+                        option.style.color = color == '' ? "#A9ABAB" : color;
+                        markerSelect.add(option);
                     }
-
-                    button.style.backgroundColor = pan_val == 0 ? "green" : "gray";
-                    button.ondblclick = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/PAN/0");
                 }
             }
 
@@ -510,7 +548,7 @@
                     button.disabled = true;
                 button.textContent = bpm_str + "BPM";
             }
-            
+
             button_el = controlsContent.childNodes[1];
             if (button_el) {
                 var button = button_el.getElementsByClassName("track_button")[0];
@@ -519,8 +557,48 @@
                     button.style.backgroundColor = "tomato";
                 }
                 else {
-                    button.textContent = "▶";
+                    button.textContent = "▶️";
                     button.style.backgroundColor = "green";
+                }
+            }
+
+            if (markerSelect.options.length > 1)
+            {
+                var found = false;
+                var newMarker = currMarker;
+                for (i = MarkersAr.length - 1; i >= 0; --i) {
+                    [name, id, position, color] = MarkersAr[i];
+                    if (parseFloat(position) < pos_sec + 0.0001) {
+                        newMarker = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    newMarker = -1;
+
+                if (newMarker != currMarker) {
+                    markerSelect.selectedIndex = newMarker + 1;
+                    var color = markerSelect.children[newMarker + 1].style.color;
+                    markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
+                    currMarker = newMarker;
+                }
+                
+                // read the selection
+                var selectChoice = markerSelect.selectedIndex;
+                if (selectChoice != selectMarkerOld) {
+                    selectMarkerIdx = selectChoice - 1;
+                    selectMarkerOld = selectChoice;
+
+                    if (selectMarkerIdx == -1) {
+                        wwr_req("SET/POS/0");
+                        markerSelect.style.color = markerSelect.children[0].style.color;
+                    }
+                    else {
+                        wwr_req("SET/POS_STR/m" + MarkersAr[selectMarkerIdx][1]);
+                        var color = markerSelect.children[selectMarkerIdx + 1].style.color;
+                        markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
+                    }
                 }
             }
 
@@ -627,12 +705,14 @@
     </select><br><br>
 
     <div id="buttons" style="height: 100px;"></div>
-
-    <div id="pan"></div>
     <hr class="rounded">
 
+    <!-- <div id="marker_name"></div> -->
+    <select id="markerSelect" hidden>
+        <option>Project start</option>
+    </select><br><br>
     <div id="controls" style="height: 100px;"></div>
-    <hr class="rounded">
+    <!-- <hr class="rounded"> -->
 
     <div id="tempo" style="height: 100px;"></div>
 
