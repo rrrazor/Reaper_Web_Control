@@ -101,8 +101,7 @@
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
             selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
-            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1, once = true,
-            trackSendCntAr = [], sendMuteAr = [];
+            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1, once = true;
 
         function mouseDownEventActivate(msg, button) {
             return function (e) {
@@ -276,33 +275,16 @@
 
                         trackRecAr[idx] = tok[3] & 64 ? 1 : 0;
 
-                        // sends
-                        trackSendCntAr[idx] = tok[10];
-                        var command = "";
-                        for (y = 0; y < parseInt(trackSendCntAr[idx]); ++y)
-                            command += "GET/TRACK/" + idx + "/SEND/" + y + ";";
-                        wwr_req(command);
-
                         break;
 
                     case "SEND":
                         if (tok.length > 3) {
-                            if (tok[2] < 0) {
-                                var f = -tok[2] - 1;
-                                receiveIdxAr[f] = tok[6];
-                                receiveVolAr[f] = tok[4];
-                                if (tok[6] == -1) { var hardVol = tok[4] }
-                                if (tok[3] & 8) { receiveMuteAr[f] = 1 }
-                                else { receiveMuteAr[f] = 0 }
-                            }
-                            else {
-                                if (!sendMuteAr[tok[1]])
-                                    sendMuteAr[tok[1]] = [];
-                                if (tok[3] & 8)
-                                    sendMuteAr[tok[1]][tok[2]] = 1;
-                                else
-                                    sendMuteAr[tok[1]][tok[2]] = 0;
-                            }
+                            var f = -tok[2] - 1;
+                            receiveIdxAr[f] = tok[6];
+                            receiveVolAr[f] = tok[4];
+                            if (tok[6] == -1) { var hardVol = tok[4] }
+                            if (tok[3] & 8) { receiveMuteAr[f] = 1 }
+                            else { receiveMuteAr[f] = 0 }
                         }
                         break;
 
@@ -420,10 +402,6 @@
 
                 button_el = document.getElementById("button").cloneNode(true);
                 button_el.getElementsByClassName("track_button")[0].textContent = "Rec";
-                buttonsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button_el.getElementsByClassName("track_button")[0].textContent = "Mute All Sends";
                 buttonsContent.appendChild(button_el);
 
                 // tempo
@@ -612,27 +590,6 @@
                 button.textContent = "Rec";
                 button.style.backgroundColor = trackRecAr[selectInputIdx] == 1 ? "tomato" : "grey";
                 button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/RECARM/-1"); // sets record arm enabled for track. if value is <0, record arm enabled is toggled
-
-                // Mute All Sends
-                button_el = buttonsContent.childNodes[3];
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.hidden = false;
-                button.disabled = false;
-                button.style.width = "100%";
-
-                var all_muted = true;
-                for (i = 0; i < parseInt(trackSendCntAr[selectInputIdx]); ++i) {
-                    if (sendMuteAr[selectInputIdx][i] == 0) {
-                        all_muted = false;
-                        break;
-                    }
-                }
-                button.style.backgroundColor = all_muted ? "tomato" : "grey";
-
-                var command = "";
-                for (i = 0; i < parseInt(trackSendCntAr[selectInputIdx]); ++i)
-                    command += "SET/TRACK/" + selectInputIdx + "/SEND/" + i + "/MUTE/-1;";
-                button.onmousedown = mouseDownEventHandler(command);
             }
 
             // enable and fill the marker selector
