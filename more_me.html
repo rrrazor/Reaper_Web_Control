@@ -36,6 +36,19 @@
             -webkit-appearance: none;
         }
 
+        #trackSelect_in {
+            width: 100%;
+            color: #A9ABAB;
+            background-color: #262626;
+            border: none;
+            font-size: 1.5em;
+            padding: 3%;
+            -webkit-border-radius: 20px;
+            -moz-border-radius: 20px;
+            border-radius: 20px;
+            -webkit-appearance: none;
+        }
+
         select option:first-child {
             color: #555555;
             font-style: italic;
@@ -73,7 +86,8 @@
         wwr_req_recur("NTRACK;TRACK", 10);
         wwr_start();
 
-        var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0;
+        var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
+            selectInputIdx = 0, selectInputOld = -1, trackPanAr = [];
 
         function mouseDownEventHandler(msg) {
             return function (e) {
@@ -207,6 +221,10 @@
                             trackColoursAr[idx] = tok[13];
                         }
 
+                        if (tok[5] != trackPanAr[idx]) {
+                            trackPanAr[idx] = tok[5];
+                        }
+
                         break;
 
                     case "SEND":
@@ -280,8 +298,11 @@
             var cloneTrackSend = document.getElementById("trackSendSvg").cloneNode(true);
             var drawnReceives = trackRcvCntAr[selectChoiceIdx];
             var drawnReceivesDone = receivesContent.childNodes.length;
+            var buttonsContent = document.getElementById("buttons");
             if (drawnReceives < drawnReceivesDone || drawnReceives == null) {
                 if (receivesContent.lastChild) { receivesContent.removeChild(receivesContent.lastChild) }
+                if (buttonsContent.lastChild) { buttonsContent.removeChild(buttonsContent.lastChild) }
+                if (document.getElementById("trackSelect_in")) { document.getElementById("trackSelect_in").hidden = true; }
             }
             if (drawnReceives > drawnReceivesDone) {
                 var sendDiv = document.createElement("div");
@@ -292,17 +313,73 @@
             if (drawnReceives == null && faderContent.innerHTML) {
                 faderContent.innerHTML = ""
                 instructions.style.display = "block";
+                buttonsContent.innerHTML = "";
             }
             if (drawnReceives >= 1 && faderContent.innerHTML === "") {
                 faderContent.appendChild(cloneFader);
                 instructions.style.display = "none";
-            }
 
+                // adding the button
+                var button_el = document.getElementById("button").cloneNode(true);
+                button_el.getElementsByClassName("track_button")[0].textContent = "FX";
+                buttonsContent.appendChild(button_el);
+                
+                button_el = document.getElementById("button").cloneNode(true);
+                button_el.getElementsByClassName("track_button")[0].textContent = "Mute";
+                buttonsContent.appendChild(button_el);
+            }
 
 
             //----------------------------------
             // Now do things based on what's been DRAWN
             //----------------------------------        
+
+            if (drawnReceives >= 1 && faderContent.innerHTML != "") { // on a musician's page
+                // enable and fill the input selector
+                var trackSelect_in = document.getElementById("trackSelect_in");
+                trackSelect_in.hidden = false;
+                if (trackSelect_in.options.length == 1) {
+                    for (x = 0; x < nTrack; x++) {
+                        if (trackIsMonitorAr[x] === 0) { //!
+                            var option = document.createElement("option");
+                            option.text = trackNameAr[x];
+                            trackSelect_in.add(option);
+                        }
+                    }
+                }
+
+                // read the selection
+                var selectChoice = trackSelect_in.value;
+                if (selectChoice != selectInputOld) {
+                    selectInputIdx = trackNameAr.indexOf(selectChoice);
+                    selectInputOld = selectChoice;
+                }
+
+                // activate the elements
+                if (selectInputIdx != -1) {
+                    // buttons
+                    var button_el = buttonsContent.childNodes[0]; // FX
+                    var button = button_el.getElementsByClassName("track_button")[0];
+                    button.disabled = false;
+
+                    var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
+                    // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
+                    commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
+                    commands += ";41749"; // Open/close UI for FX #1 on last touched track
+
+                    button.onmousedown = mouseDownEventHandler(commands);
+
+                    button_el = buttonsContent.childNodes[1]; // Mute
+                    button = button_el.getElementsByClassName("track_button")[0];
+                    button.disabled = false;
+                    button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/MUTE/-1"); // sets mute for track. if value is <0, mute is toggled
+
+                    // pan
+                    var pan_info = document.getElementById("pan_info");
+                    var pan_val = Math.abs(trackPanAr[selectInputIdx] * 100) + "%";// + trackPanAr[selectInputIdx] < 0 ? "L" : "R";
+                    pan_info.textContent = "Pan: " + pan_val;
+                }
+            }
 
             var trackRow2Content = document.getElementById("trackRow2Svg");
             if (trackRow2Content) {
@@ -399,6 +476,16 @@
     <div class="trackRow2"></div>
 
     <div id="receives"></div>
+
+    <hr class="rounded">
+
+    <select id="trackSelect_in" hidden>
+        <option>Select your input track...</option>
+    </select><br><br>
+
+    <div id="buttons"></div>
+
+    <div id="pan_info"></div>
 
     <div id="backLoad" style="display:none">
 
@@ -515,6 +602,9 @@
                     C315,1.2,313.9,0.1,312.6,0.1L312.6,0.1z" />
                 </g>
             </svg>
+        </element>
+        <element id=button>
+            <button class="track_button" disabled>a button</button>
         </element>
     </div>
 
