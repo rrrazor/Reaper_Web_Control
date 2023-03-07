@@ -7,7 +7,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0" />
 
-    <title>WaveHit Personal Monitor</title>
+    <title>WaveHit REAPER Web Control</title>
     <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700" rel="stylesheet" type="text/css">
     <script src="main.js"></script>
 
@@ -96,14 +96,39 @@
 
     <script type="text/javascript">
 
-        wwr_req_recur("NTRACK;TRACK;BEATPOS;MARKER;TRANSPORT", 10);
+        wwr_req_recur("NTRACK;TRACK;BEATPOS;TRANSPORT", 10);
+        wwr_req_recur("MARKER;REGION", 500);
         wwr_start();
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
             selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
             pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1, once = true,
 
-            last_transport_state = -1, drawnSig = 0, drawnBeat = 0;
+            last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1;
+
+        function lumaOffset(c) {
+            var c = c.substring(1);
+            var rgb = parseInt(c, 16);
+            var r = (rgb >> 16) & 0xff;
+            var g = (rgb >> 8) & 0xff;
+            var b = (rgb >> 0) & 0xff;
+            var luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            function componentToHex(c) {
+                var hex = c.toString(16);
+                return hex.length == 1 ? "0" + hex : hex;
+            }
+            if (luma < 150) { r = r + 150; g = g + 150; b = b + 150 }
+            if (luma > 150) { r = r - 120; g = g - 120; b = b - 120 }
+            if (r < 0) { r = 0 }; if (g < 0) { g = 0 }; if (b < 0) { b = 0 }
+            if (r > 255) { r = 255 }; if (g > 255) { g = 255 }; if (b > 255) { b = 255 }
+            return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+        }
+
+        function elAttribute(id, attribute, value) {
+            if (document.getElementById(id)) {
+                document.getElementById(id).setAttributeNS(null, attribute, value);
+            }
+        }
 
         function mouseDownEventActivate(msg, button) {
             return function (e) {
@@ -317,10 +342,12 @@
                     case "MARKER":
                         var marker = [tok[1], tok[2], tok[3], toColor(tok[4])];
                         MarkersAr.push(marker);
+                        g_markers.push(tok);
                         break;
 
                     case "MARKER_LIST":
                         MarkersAr = [];
+                        g_markers = [];
                         break;
 
                     case "TRANSPORT":
@@ -334,7 +361,240 @@
                                     document.getElementById("pauseButtonOff").style.visibility = (last_transport_state & 2) ? "hidden" : "visible";
                                     document.getElementById("pauseButtonOn").style.visibility = (last_transport_state & 2) ? "visible" : "hidden";
                                 }
+                                if (tok[2] != playPosSeconds) { playPosSeconds = tok[2]; }
                             }
+                        }
+                        break;
+
+                    case "REGION_LIST":
+                        g_regions = [];
+                        break;
+                    case "REGION":
+                        g_regions.push(tok);
+                        break;
+                    case "MARKER_LIST_END":
+                        var pos = parseFloat(playPosSeconds);
+                        var previ = -1, thisi = -1, nexti = -1;
+                        break;
+
+                    case "REGION_LIST_END":
+
+                        //assemble mrMap array : time, marker number, region start number, region end number.
+                        for (var i = 0; i < g_regions.length; i++) {
+                            if (g_regions[i][5] == 0) { g_regions[i][5] = 25198720; } // Give uncoloured regions a colour.
+                        }
+                        for (var i = 0; i < g_markers.length; i++) {
+                            if (g_markers[i][4] == 0) { g_markers[i][4] = 25198720; } // Give uncoloured markers a colour.
+                        }
+                        var mrMapAr = [];
+                        for (var i = 0; i < g_regions.length * 2; i++) {
+                            mrMapAr[i] = [];
+                            if (i < g_regions.length) {                             //add the region starts to the ar
+                                mrMapAr[i][0] = g_regions[i][3];
+                                mrMapAr[i][2] = g_regions[i][2];
+                            }
+                            else {                                               //add the region ends to the ar
+                                mrMapAr[i][0] = g_regions[i - g_regions.length][4];
+                                mrMapAr[i][3] = g_regions[i - g_regions.length][2];
+                            }
+                        }
+                        for (var i = 0; i < g_markers.length; i++) {                //add the markers to the ar
+                            mrMapAr[i + (g_regions.length * 2)] = [];
+                            mrMapAr[i + (g_regions.length * 2)][0] = g_markers[i][3];
+                            mrMapAr[i + (g_regions.length * 2)][1] = g_markers[i][2];
+                        }
+
+                        for (var i = 0; i < mrMapAr.length; i++) {                  //prep times for sorting
+                            posToSix = parseFloat(mrMapAr[i][0]).toFixed(6);
+                            mrMapAr[i][0] = parseFloat(posToSix);
+                        }
+
+                        mrMapAr.sort(function (a, b) {                           //sort into time order
+                            return (a[0] === b[0] ? 0 : (a[0] < b[0] ? -1 : 1));
+                        });
+
+                        function mergeAt(idx) {
+                            if (mrMapAr[i - 1][idx]) { a = mrMapAr[i - 1][idx] } else { a = 0 };
+                            if (mrMapAr[i][idx]) { b = mrMapAr[i][idx] } else { b = 0 };
+                            mrMapAr[i - 1][idx] = parseFloat(a) + parseFloat(b);
+                        }
+
+                        var mergeDone = 0;
+                        for (var i = 1; i < mrMapAr.length; i++) {                  //merge cells if at same time, delete the duplicate
+                            if (mrMapAr[i - 1] && mrMapAr[i][0] === mrMapAr[i - 1][0]) {
+                                mergeAt(1); mergeAt(2); mergeAt(3);
+                                mrMapAr.splice(i, 1);
+                            }
+                            if (i == (mrMapAr.length - 1)) { mergeDone = 1 }
+                        }
+
+                        var prevl = -1, thisl = -1, nextl = -1;
+                        if (mergeDone == 1) {
+                            for (var i = 0; i < mrMapAr.length; i++) {
+                                var diff = (mrMapAr[i][0] - pos);
+                                if (diff < 0) {
+                                    if (i > prevl) { prevl = i }
+                                }
+                                if (diff == 0) { thisl = i };
+                                if (diff > 0) {
+                                    if (i > nextl) { nextl = i; break; }
+                                }
+                            }
+                        }
+
+                        function getValuesFromId(array, id, colourIdx) {
+                            for (var i = 0, len = array.length; i < len; i++) {
+                                if (array[i][2] == id) { return [id, (array[i][1]), (array[i][colourIdx])] }
+                            }
+                            return [0, 0, 0];
+                        }
+
+                        var nextPrevSvg = document.getElementById("nextPrev")
+                        if ((pos != newPos || mrMapAr.length != newMrMapLength) && mergeDone == 1 && nextPrevSvg) {
+                            var rIdxAsg = [];
+                            search: for (i = 0; i < 4; i++) {                         // 4 is the maximum drawable number of regions
+                                if (mrMapAr[prevl] && mrMapAr[prevl][3] >= 1) {               //region end at prev?
+                                    var q = parseFloat(mrMapAr[prevl][3]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; continue search; }
+                                }
+                                if (mrMapAr[prevl] && mrMapAr[prevl][2] >= 1) {               //region start at prev?
+                                    var q = parseFloat(mrMapAr[prevl][2]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; continue search; }
+                                }
+                                if (mrMapAr[thisl] && mrMapAr[thisl][3] >= 1) {               //region end at this?
+                                    var q = parseFloat(mrMapAr[thisl][3]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; continue search; }
+                                }
+                                if (mrMapAr[thisl] && mrMapAr[thisl][2] >= 1) {               //region start at this?
+                                    var q = parseFloat(mrMapAr[thisl][2]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; continue search; }
+                                }
+                                if (mrMapAr[nextl] && mrMapAr[nextl][3] >= 1) {               //region end at next?
+                                    var q = parseFloat(mrMapAr[nextl][3]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; continue search }
+                                }
+                                if (mrMapAr[nextl] && mrMapAr[nextl][2] >= 1) {               //region start at next?
+                                    var q = parseFloat(mrMapAr[nextl][2]);
+                                    if (rIdxAsg.indexOf(q) == -1) { rIdxAsg[i] = q; }
+                                }
+                            }
+
+                            function getValFromAr(array, id, idLoc, valLoc) {
+                                for (var i = 0, len = array.length; i < len; i++) {
+                                    if (array[i][idLoc] == id) { return array[i][valLoc]; }
+                                }
+                                return;
+                            }
+
+                            for (i = 1; i < 5; i++) {
+                                this['r' + i + 'StalkLx'] = 45.6;
+                                this['r' + i + 'StalkRx'] = 273.1;
+                                if (rIdxAsg[i - 1] && rIdxAsg[i - 1] >= 0) {
+                                    this['r' + i + 'Idx'] = rIdxAsg[i - 1];
+                                    this['r' + i + 'Name'] = getValFromAr(g_regions, rIdxAsg[i - 1], 2, 1);
+                                    this['col' + i] = getValFromAr(g_regions, rIdxAsg[i - 1], 2, 5);
+                                    this['rCol' + i] = "#" + (this['col' + i] | 0x1000000).toString(16).substr(-6);
+                                    if (prevl >= 0 && mrMapAr[prevl][3] == rIdxAsg[i - 1]) { this['r' + i + 'StalkRx'] = 102.5; }
+                                    if (prevl >= 0 && mrMapAr[prevl][2] == rIdxAsg[i - 1]) { this['r' + i + 'StalkLx'] = 102.5; }
+                                    if (thisl >= 0 && mrMapAr[thisl][2] == rIdxAsg[i - 1]) { this['r' + i + 'StalkLx'] = 159.4; }
+                                    if (thisl >= 0 && mrMapAr[thisl][3] == rIdxAsg[i - 1]) { this['r' + i + 'StalkRx'] = 159.4; }
+                                    if (nextl >= 0 && mrMapAr[nextl][2] == rIdxAsg[i - 1]) { this['r' + i + 'StalkLx'] = 216.2; }
+                                    if (nextl >= 0 && mrMapAr[nextl][3] == rIdxAsg[i - 1]) { this['r' + i + 'StalkRx'] = 216.2; }
+                                    document.getElementById('region' + i).setAttributeNS(null, "visibility", "visible");
+                                    document.getElementById('r' + i + 'Rect').setAttributeNS(null, "fill", this['rCol' + i]);
+                                    document.getElementById('r' + i + 'StalkL').setAttributeNS(null, "x1", this['r' + i + 'StalkLx']);
+                                    document.getElementById('r' + i + 'StalkL').setAttributeNS(null, "x2", this['r' + i + 'StalkLx']);
+                                    document.getElementById('r' + i + 'StalkR').setAttributeNS(null, "x1", this['r' + i + 'StalkRx']);
+                                    document.getElementById('r' + i + 'StalkR').setAttributeNS(null, "x2", this['r' + i + 'StalkRx']);
+                                    this['r' + i + 'RectW'] = (this['r' + i + 'StalkRx']) - (this['r' + i + 'StalkLx']);
+                                    document.getElementById('r' + i + 'Rect').setAttributeNS(null, "x", this['r' + i + 'StalkLx']);
+                                    document.getElementById('r' + i + 'Rect').setAttributeNS(null, "width", this['r' + i + 'RectW']);
+                                    if (!this['r' + i + 'Name']) { this['r' + i + 'Name'] = this['r' + i + 'Idx'] }
+                                    document.getElementById('r' + i + 'Name').textContent = this['r' + i + 'Name'];
+                                    document.getElementById('r' + i + 'Name').setAttributeNS(null, "fill", lumaOffset(this['rCol' + i]));
+                                    this['r' + i + 'NamePos'] = this['r' + i + 'StalkLx'] + ((this['r' + i + 'StalkRx'] - this['r' + i + 'StalkLx']) / 2);
+                                    document.getElementById('r' + i + 'Name').setAttributeNS(null, "transform", "matrix(1 0 0 1 " + this['r' + i + 'NamePos'] + " 31)");
+                                }
+                                else { document.getElementById('region' + i).setAttributeNS(null, "visibility", "hidden"); }
+                            }
+
+                            if (mrMapAr[prevl] && mrMapAr[prevl][1] >= 1) {
+                                var mPrevIdx = mrMapAr[prevl][1];
+                                var mPrevName = getValFromAr(g_markers, mPrevIdx, 2, 1);
+                                var mPrevCol = getValFromAr(g_markers, mPrevIdx, 2, 4);
+                                mPrevCol = "#" + (mPrevCol | 0x1000000).toString(16).substr(-6);
+                                document.getElementById("marker1").setAttributeNS(null, "visibility", "visible");
+                                document.getElementById("marker1Bg").setAttributeNS(null, "fill", mPrevCol);
+                                document.getElementById("marker1Number").textContent = mPrevIdx;
+                                document.getElementById("marker1Number").setAttributeNS(null, "fill", lumaOffset(mPrevCol));
+                                document.getElementById("prevMarkerName").textContent = (!mPrevName) ? ("unnamed") : (mPrevName);
+                            }
+                            else { document.getElementById("marker1").setAttributeNS(null, "visibility", "hidden"); }
+
+                            if (mrMapAr[thisl] && mrMapAr[thisl][1] >= 1) {
+                                var mThisIdx = mrMapAr[thisl][1];
+                                var mThisName = getValFromAr(g_markers, mThisIdx, 2, 1);
+                                var mThisCol = getValFromAr(g_markers, mThisIdx, 2, 4);
+                                mThisCol = "#" + (mThisCol | 0x1000000).toString(16).substr(-6);
+                                document.getElementById("marker2").setAttributeNS(null, "visibility", "visible");
+                                document.getElementById("marker2Bg").setAttributeNS(null, "fill", mThisCol);
+                                document.getElementById("marker2Number").textContent = mThisIdx;
+                                document.getElementById("marker2Number").setAttributeNS(null, "fill", lumaOffset(mThisCol));
+                                document.getElementById("atMarkerName").textContent = (!mThisName) ? ("unnamed") : (mThisName);
+                            }
+                            else { document.getElementById("marker2").setAttributeNS(null, "visibility", "hidden"); }
+
+                            if (mrMapAr[nextl] && mrMapAr[nextl][1] >= 1) {
+                                var mNextIdx = mrMapAr[nextl][1];
+                                var mNextName = getValFromAr(g_markers, mNextIdx, 2, 1);
+                                var mNextCol = getValFromAr(g_markers, mNextIdx, 2, 4);
+                                mNextCol = "#" + (mNextCol | 0x1000000).toString(16).substr(-6);
+                                document.getElementById("marker3").setAttributeNS(null, "visibility", "visible");
+                                document.getElementById("marker3Bg").setAttributeNS(null, "fill", mNextCol);
+                                document.getElementById("marker3Number").textContent = mNextIdx;
+                                document.getElementById("marker3Number").setAttributeNS(null, "fill", lumaOffset(mNextCol));
+                                document.getElementById("nextMarkerName").textContent = (!mNextName) ? ("unnamed") : (mNextName);
+                            }
+                            else { document.getElementById("marker3").setAttributeNS(null, "visibility", "hidden"); }
+
+                            if (prevl >= 0) { homeIconVis = "hidden"; prevIconVis = "visible"; }
+                            else {
+                                homeIconVis = "visible"; prevIconVis = "hidden";
+                                if (pos > 0) {
+                                    document.getElementById("marker1").setAttributeNS(null, "visibility", "visible");
+                                    document.getElementById("prevMarkerName").textContent = "HOME";
+                                    document.getElementById("marker1Number").textContent = "H";
+                                    document.getElementById("marker1Bg").setAttributeNS(null, "fill", "#1a1a1a");
+                                    document.getElementById("marker1Number").setAttributeNS(null, "fill", "#A8A8A8");
+                                }
+                                else {
+                                    document.getElementById("marker2").setAttributeNS(null, "visibility", "visible");
+                                    document.getElementById("atMarkerName").textContent = "HOME";
+                                    document.getElementById("marker2Number").textContent = "H";
+                                    document.getElementById("marker2Bg").setAttributeNS(null, "fill", "#1a1a1a");
+                                    document.getElementById("marker2Number").setAttributeNS(null, "fill", "#A8A8A8");
+                                }
+                            }
+                            if (thisl < 0 && pos != 0) { elAttribute("dropMarker", "visibility", "visible") }
+                            else { elAttribute("dropMarker", "visibility", "hidden") }
+                            if (nextl >= 0) {
+                                endIconVis = "hidden"; nextIconVis = "visible";
+                            }
+                            else {
+                                document.getElementById("marker3").setAttributeNS(null, "visibility", "visible");
+                                document.getElementById("nextMarkerName").textContent = "END";
+                                document.getElementById("marker3Number").textContent = "E";
+                                document.getElementById("marker3Bg").setAttributeNS(null, "fill", "#1a1a1a");
+                                document.getElementById("marker3Number").setAttributeNS(null, "fill", "#A8A8A8");
+                                endIconVis = "visible"; nextIconVis = "hidden";
+                            }
+                            elAttribute("iconPrev", "visibility", prevIconVis);
+                            elAttribute("iconHome", "visibility", homeIconVis);
+                            elAttribute("iconNext", "visibility", nextIconVis);
+                            elAttribute("iconEnd", "visibility", endIconVis);
+
+                            newPos = pos;
+                            newMrMapLength = mrMapAr.length;
                         }
                         break;
                 }
@@ -390,6 +650,10 @@
                 wwr_req("GET/TRACK/" + selectChoiceIdx + "/SEND/" + (-y)); // requesting receive values of the track being displayed
             }
             wwr_req("GET/TRACK/" + selectChoiceIdx + "/SEND/" + 0); // request the first normal send, which should be the hardware send
+
+            var last_loaded = document.getElementById("last");
+            if (last_loaded == null)
+                return;
 
             var faderContent = document.getElementsByClassName("trackRow2")[0];
             var receivesContent = document.getElementById("receives");
@@ -818,127 +1082,171 @@
 
     <div id="tempo" style="height: 100px;"></div>
 
-    <div id="backLoad" style="display:none">
+    <div>
+        <svg id="nextPrev" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+            x="0px" y="0px" width="100%" height="100%" viewBox="0 0 318.9 87.8" xml:space="preserve">
+            <polygon id="markerSecBg" fill="#262626" points="164.3,12.5 159,17.8 153.8,12.5 70.4,12.5 70.4,79.2 153.8,79.2 159,74 
+        164.3,79.2 248.3,79.2 248.3,12.5 " />
+            <rect id="markerStrip" x="70.4" y="50.4" fill="#2D2D2D" width="177.9" height="15" />
+            <rect id="regionStrip" x="70.4" y="20.2" fill="#2D2D2D" width="177.9" height="15" />
+            <path id="locTriangles" fill="#666666"
+                d="M152.4,87.8l6.6-6.6l6.6,6.6H152.4z M152.4,4l6.6,6.6l6.6-6.6H152.4z" />
+            <style type="text/css">
+                .st0 {
+                    fill: none;
+                    stroke: #808080;
+                    stroke-miterlimit: 10;
+                }
 
-        <element id=trackRow2Svg>
-            <svg version="1.1" class="faderSvg" display="block" xmlns="http://www.w3.org/2000/svg"
-                xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%"
-                viewBox="0 1 320 47" xml:space="preserve">
-                <rect x="0" fill="#333333" width="320" height="36" />
-                <rect id="fader_track" x="23" y="16.7" transform="matrix(-1 -1.224647e-16 1.224647e-16 -1 320 37.3333)"
-                    opacity="0.5" fill="#1A1A1A" width="274" height="4" />
-                <g class="fader">
-                    <g>
-                        <linearGradient id="fGrad1" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-114.0833"
-                            x2="245.0833" y2="-106.0833"
-                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
-                            <stop offset="0" style="stop-color:#212121" />
-                            <stop offset="1" style="stop-color:#949494" />
-                        </linearGradient>
-                        <rect x="38" y="0.5" fill="url(#fGrad1)" width="8" height="35" />
+                .st3 {
+                    font-family: 'Open Sans';
+                    text-anchor: middle;
+                }
 
-                        <linearGradient id="fGrad2" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-106.0833"
-                            x2="245.0833" y2="-92.0833"
-                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
-                            <stop offset="0" style="stop-color:#FFFFFF" />
-                            <stop offset="0.9991" style="stop-color:#7A7A7A" />
-                        </linearGradient>
-                        <path fill="url(#fGrad2)" d="M26,0.5h12v35H26c-1.1,0-2-0.9-2-2v-31C24,1.4,24.9,0.5,26,0.5z" />
+                .st4 {
+                    font-size: 10px;
+                }
+            </style>
+            <g id="region1" visibility="hidden">
+                <line id="r1StalkL" class="st0" x1="45.6" y1="30.7" x2="45.6" y2="73.6" />
+                <line id="r1StalkR" class="st0" x1="102.5" y1="30.7" x2="102.5" y2="73.6" />
+                <rect id="r1Rect" x="45.6" y="20.2" rx="3" ry="3" stroke="#808080" width="56.9" height="15.1" />
+                <text id="r1Name" transform="matrix(1 0 0 1 74.5 31)" class="st3 st4"></text>
+            </g>
+            <g id="region2" visibility="hidden">
+                <line id="r2StalkL" class="st0" x1="45.6" y1="30.7" x2="45.6" y2="73.6" />
+                <line id="r2StalkR" class="st0" x1="102.5" y1="30.7" x2="102.5" y2="73.6" />
+                <rect id="r2Rect" x="45.6" y="20.2" rx="3" ry="3" stroke="#808080" width="56.9" height="15.1" />
+                <text id="r2Name" transform="matrix(1 0 0 1 74.5 31)" class="st3 st4"></text>
+            </g>
+            <g id="region3" visibility="hidden">
+                <line id="r3StalkL" class="st0" x1="45.6" y1="30.7" x2="45.6" y2="73.6" />
+                <line id="r3StalkR" class="st0" x1="102.5" y1="30.7" x2="102.5" y2="73.6" />
+                <rect id="r3Rect" x="45.6" y="20.2" rx="3" ry="3" stroke="#808080" width="56.9" height="15.1" />
+                <text id="r3Name" transform="matrix(1 0 0 1 74.5 31)" class="st3 st4"></text>
+            </g>
+            <g id="region4" visibility="hidden">
+                <line id="r4StalkL" class="st0" x1="45.6" y1="30.7" x2="45.6" y2="73.6" />
+                <line id="r4StalkR" class="st0" x1="102.5" y1="30.7" x2="102.5" y2="73.6" />
+                <rect id="r4Rect" x="45.6" y="20.2" rx="3" ry="3" stroke="#808080" width="56.9" height="15.1" />
+                <text id="r4Name" transform="matrix(1 0 0 1 74.5 31)" class="st3 st4"></text>
+            </g>
 
-                        <linearGradient id="fGrad3" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-91.0833"
-                            x2="245.0833" y2="-77.0833"
-                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
-
-                            <stop offset="0" style="stop-color:#9C9C9C" />
-                            <stop offset="1" style="stop-color:#4D4D4D" />
-                        </linearGradient>
-                        <path fill="url(#fGrad3)" d="M21,35.5c1.1,0,2-0.9,2-2v-31c0-1.1-0.9-2-2-2H9v35H21z" />
-
-                        <linearGradient id="fGrad4" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-77.0833"
-                            x2="245.0833" y2="-69.0833"
-                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
-                            <stop offset="0" style="stop-color:#FFFFFF" />
-                            <stop offset="0.1231" style="stop-color:#F2F2F2" />
-                            <stop offset="0.3517" style="stop-color:#CFCFCF" />
-                            <stop offset="0.6607" style="stop-color:#979797" />
-                            <stop offset="1" style="stop-color:#525252" />
-                        </linearGradient>
-                        <rect x="1" y="0.5" fill="url(#fGrad4)" width="8" height="35" />
+            <g id="marker1" visibility="hidden">
+                <line id="markerStalk" fill="none" stroke="#808080" stroke-miterlimit="10" x1="102.5" y1="59.7"
+                    x2="102.5" y2="73.6" />
+                <rect id="marker1Bg" x="95" y="50.4" rx="3" ry="3" stroke="#808080" stroke-miterlimit="10" width="15"
+                    height="15" />
+                <text id="marker1Number" transform="matrix(1 0 0 1 102.5 61.5)" fill="#A8A8A8" font-family="'Open Sans'"
+                    text-anchor="middle" font-size="10px"></text>
+                <g>
+                    <defs>
+                        <rect id="npClip1" x="74.1" y="35.8" width="56.8" height="14.6" />
+                    </defs>
+                    <clipPath id="npClip2">
+                        <use xlink:href="#npClip1" overflow="visible" />
+                    </clipPath>
+                    <g clip-path="url(#npClip2)">
+                        <text id="prevMarkerName" transform="matrix(1 0 0 1 102.5 46.6)" fill="#A8A8A8"
+                            font-family="'Open Sans'" text-anchor="middle" font-size="10px"></text>
                     </g>
-                    <path id="outline_1_" d="M1,0.5h20c1.1,0,2,0.9,2,2v31c0,1.1-0.9,2-2,2H1V0.5 M24,2.5c0-1.1,0.9-2,2-2h20v35H26c-1.1,0-2-0.9-2-2
-                V2.5 M0.5,0v36H21c1.4,0,2.5-1.1,2.5-2.5c0,1.4,1.1,2.5,2.5,2.5h20.5V0H26c-1.4,0-2.5,1.1-2.5,2.5C23.5,1.1,22.4,0,21,0H0.5L0.5,0z
-                " />
-                    <path opacity="0.1" fill="#FFFFFF" d="M2,1.5h19c0.6,0,1,0.4,1,1v31c0,0.6-0.4,1-1,1H2V1.5 M25,2.5
-                c0-0.6,0.4-1,1-1h19v33H26c-0.6,0-1-0.4-1-1V2.5 M1,0.5v35h20c1.1,0,2-0.9,2-2v-31c0-1.1-0.9-2-2-2H1L1,0.5z M24,2.5v31
-                c0,1.1,0.9,2,2,2h20v-35H26C24.9,0.5,24,1.4,24,2.5L24,2.5z" />
-
-                    <linearGradient id="fGrad5" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-1061.0476"
-                        x2="245.0833" y2="-1058.0729"
-                        gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -1034.0834 263.0833)">
-                        <stop offset="0" style="stop-color:#FFFFFF;stop-opacity:0" />
-                        <stop offset="0.5" style="stop-color:#FFFFFF" />
-                    </linearGradient>
-                    <path opacity="0.33" fill="url(#fGrad5)" d="M26,35.5h1v-1h-1c-0.6,0-1-0.4-1-1v-31c0-0.6,0.4-1,1-1
-                h1v-1h-1c-1,0-1.8,0.7-2,1.6v31.8C24.2,34.8,25,35.5,26,35.5z" />
                 </g>
-            </svg>
-        </element>
-
-        <element id=trackSendSvg>
-            <svg version="1.1" display="block" xmlns="http://www.w3.org/2000/svg"
-                xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%"
-                viewBox="0 0 320 48" xml:space="preserve">
-                <rect class="sendPanelBg" fill="#333333" width="320" height="49" />
-                <path class="sendBg" fill="#262626" d="M244,0c-0.3,0-0.7,0-1,0v0H142h-17H27v0c-0.3,0-0.7,0-1,0C13.8,0,4,9.8,4,22s9.8,22,22,22
-            c0.3,0,0.7,0,1,0v0h98h17h101v0c0.3,0,0.7,0,1,0c12.2,0,22-9.8,22-22S256.2,0,244,0z" />
-                <line class="sendLine" style="pointer-events:none" fill="none" opacity="0.5" stroke="#404040"
-                    stroke-width="38" stroke-linecap="round" stroke-miterlimit="10" x1="27" y1="22" x2="130" y2="22" />
-                <text class="sendTitleText" style="pointer-events:none" transform="matrix(1 0 0 1 25 29)" fill="#A3A3A3"
-                    font-family="'Open Sans'" font-size="19px">Target Name</text>
-                <text class="sDbText" style="pointer-events:none" text-anchor="end" transform="matrix(1 0 0 1 250 27)"
-                    fill="#A3A3A3" font-family="'Open Sans'" font-size="12px">xx dB</text>
-                <circle class="sendThumb" opacity="0.5" fill="#808080" stroke="#262626" stroke-width="2"
-                    stroke-miterlimit="10" cx="26" cy="22" r="19" />
-
-                <g class="send_mute button">
-                    <g class="send_mute_off" visibility="visible">
-                        <path class="shadow" opacity="0.15" d="M314.4,45.2c0,1-0.8,1.8-1.8,1.8h-39c-1,0-1.8-0.8-1.8-1.8
-                        v-4.6h42.7v4.6H314.4z" />
-                        <linearGradient id="smoGrad" gradientUnits="userSpaceOnUse" x1="1720.0585" y1="-785.3847"
-                            x2="1720.0585" y2="-828.6583" gradientTransform="matrix(1 0 0 -1 -1427 -785)">
-                            <stop offset="0" style="stop-color:#404040" />
-                            <stop offset="1" style="stop-color:#333333" />
-                        </linearGradient>
-                        <path fill="url(#smoGrad)" d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39
-                        c0,1.2-1,2.1-2.1,2.1H273.6z" />
-                        <g>
-                            <path fill="#805240" d="M293.1,25.9L293.1,25.9l4.2-10h2.2v12.3h-1.8V19h-0.1l-3.9,9.1h-1.2l-4-9.5h-0.1v9.5h-1.8V15.9h2.3
-                            L293.1,25.9z" />
-                        </g>
-                        <path class="mouseover" visibility="hidden" opacity="0.05" fill="#FFFFFF"
-                            d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39 c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39c0,1.2-1,2.1-2.1,2.1H273.6z" />
+            </g>
+            <g id="marker2" visibility="hidden">
+                <line id="markerStalk_1_" fill="none" stroke="#808080" stroke-miterlimit="10" x1="159.3" y1="59.7"
+                    x2="159.3" y2="73.6" />
+                <rect id="marker2Bg" x="151.8" y="50.4" rx="3" ry="3" stroke="#808080" stroke-miterlimit="10" width="15"
+                    height="15" />
+                <text id="marker2Number" transform="matrix(1 0 0 1 159.5 61.5)" fill="#A8A8A8" font-family="'Open Sans'"
+                    text-anchor="middle" font-size="10px"></text>
+                <g>
+                    <defs>
+                        <rect id="npClip3" x="130.9" y="35.8" width="56.8" height="14.6" />
+                    </defs>
+                    <clipPath id="npClip4">
+                        <use xlink:href="#npClip3" overflow="visible" />
+                    </clipPath>
+                    <g clip-path="url(#npClip4)">
+                        <text id="atMarkerName" transform="matrix(1 0 0 1 159.5 46.6)" fill="#A8A8A8"
+                            font-family="'Open Sans'" text-anchor="middle" font-size="10px"></text>
                     </g>
-                    <g class="send_mute_on" visibility="hidden">
-                        <path display="inline" fill="#F13F24" d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39
-                        c0,1.2-1,2.1-2.1,2.1H273.6z" />
-                        <g display="inline">
-                            <path fill="#FFFFFF" d="M293.1,25.9L293.1,25.9l4.2-10h2.2v12.3h-1.8V19h-0.1l-3.9,9.1h-1.2l-4-9.5h-0.1v9.5h-1.8V15.9h2.3
-                            L293.1,25.9z" />
-                        </g>
-                        <path class="mouseover" visibility="hidden" opacity="0" fill="#FFFFFF"
-                            d="M273.6,43.6 c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39c0,1.2-1,2.1-2.1,2.1H273.6z" />
-                    </g>
-                    <path fill="#1A1A1A" d="M312.6,0.7c1,0,1.8,0.8,1.8,1.8v39c0,1-0.8,1.8-1.8,1.8h-39c-1,0-1.8-0.8-1.8-1.8v-39
-                    c0-1,0.8-1.8,1.8-1.8H312.6 M312.6,0.1h-39c-1.3,0-2.4,1.1-2.4,2.4v39c0,1.3,1.1,2.4,2.4,2.4h39c1.3,0,2.4-1.1,2.4-2.4v-39
-                    C315,1.2,313.9,0.1,312.6,0.1L312.6,0.1z" />
                 </g>
-            </svg>
-        </element>
-        <element id=button>
-            <button class="track_button"
-                style="width:33.3%;height:90px;font-size:xx-large;background-color:gray;float:left;" value=0 hidden
-                disabled>button</button>
-        </element>
+            </g>
+            <g id="marker3" visibility="hidden">
+                <line id="markerStalk_2_" fill="none" stroke="#808080" stroke-miterlimit="10" x1="216.1" y1="59.7"
+                    x2="216.1" y2="73.6" />
+                <rect id="marker3Bg" x="208.6" y="50.4" rx="3" ry="3" stroke="#808080" stroke-miterlimit="10" width="15"
+                    height="15" />
+                <text id="marker3Number" transform="matrix(1 0 0 1 216 61.5)" fill="#A8A8A8" font-family="'Open Sans'"
+                    text-anchor="middle" font-size="10px"></text>
+                <g>
+                    <defs>
+                        <rect id="npClip5" x="187.7" y="35.8" width="56.8" height="14.6" />
+                    </defs>
+                    <clipPath id="npClip6">
+                        <use xlink:href="#npClip5" overflow="visible" />
+                    </clipPath>
+                    <g clip-path="url(#npClip6)">
+                        <text id="nextMarkerName" transform="matrix(1 0 0 1 216 46.6)" fill="#A8A8A8"
+                            font-family="'Open Sans'" text-anchor="middle" font-size="10px"></text>
+                    </g>
+                </g>
+            </g>
+            <g id=nextButton class="button" onClick="wwr_req(40173)">
+                <path class="shadow" opacity="0.15" d="M248.3,83.5h29.6c17.8,0,32.3-14.4,32.3-32.3v-5.6h-64.6v35
+            C245.6,82.4,246.8,83.5,248.3,83.5z" />
+                <path fill="#1A1A1A" d="M248.3,12.5H278c18.4,0,33.4,15,33.4,33.4s-15,33.4-33.4,33.4h-29.7c-2,0-3.7-1.6-3.7-3.7V16.2
+            C244.6,14.1,246.3,12.5,248.3,12.5L248.3,12.5z" />
+
+                <linearGradient id="mrg1" gradientUnits="userSpaceOnUse" x1="-1856.4718" y1="405.6207" x2="-1856.4718"
+                    y2="469.644" gradientTransform="matrix(-1 0 0 -1 -1578.4503 483.5079)">
+                    <stop offset="0" style="stop-color:#262626" />
+                    <stop offset="1" style="stop-color:#404040" />
+                </linearGradient>
+                <path fill="url(#mrg1)" d="M278,77.9c17.7,0,32-14.3,32-32s-14.3-32-32-32h-29.7c-1.2,0-2.3,1.1-2.3,2.3v59.4
+            c0,1.4,1.1,2.3,2.3,2.3H278z" />
+                <path opacity="5.000000e-02" d="M310.2,45.7H246v29.4c0,1.5,1.2,2.7,2.7,2.7h29.4
+            C295.9,77.9,310.2,63.4,310.2,45.7L310.2,45.7z" />
+                <path id="iconEnd" visibility="hidden" fill="#808080"
+                    d="M279.4,46l-17.4-11.3v22.6L279.4,46z M281.4,34.7h5v22.6h-5V34.7z" />
+                <path id="iconNext" fill="#808080" d="M279.4,46l-17.4-11.3v22.6L279.4,46z M278.7,34.7h10.4l-5.2,5L278.7,34.7z
+             M281.4,42.2h5v15h-5V42.2z" />
+                <path class="mouseover" visibility="hidden" opacity="0.05" fill="#FFFFFF" d="M278,77.9c17.7,0,32-14.3,32-32s-14.3-32-32-32h-29.7
+            c-1.2,0-2.3,1.1-2.3,2.3v59.4c0,1.4,1.1,2.3,2.3,2.3H278z" />
+            </g>
+            <g id=prevButton class="button" onClick="wwr_req(40172)">
+                <path class="shadow" opacity="0.15" d="M70.4,83.5H40.8C23,83.5,8.5,69,8.5,51.2v-5.6h64.6v35
+            C73.1,82.4,71.9,83.5,70.4,83.5z" />
+                <path fill="#1A1A1A" d="M70.4,12.5H40.7c-18.4,0-33.4,15-33.4,33.4s15,33.4,33.4,33.4h29.7c2,0,3.7-1.6,3.7-3.7V16.2
+            C74.1,14.1,72.4,12.5,70.4,12.5L70.4,12.5z" />
+
+                <linearGradient id="mrg2" gradientUnits="userSpaceOnUse" x1="-436.7075" y1="405.6207" x2="-436.7075"
+                    y2="469.644" gradientTransform="matrix(1 0 0 -1 477.3987 483.5079)">
+                    <stop offset="0" style="stop-color:#262626" />
+                    <stop offset="1" style="stop-color:#404040" />
+                </linearGradient>
+                <path fill="url(#mrg2)" d="M40.7,77.9c-17.7,0-32-14.3-32-32s14.3-32,32-32h29.7c1.2,0,2.3,1.1,2.3,2.3v59.4
+            c0,1.4-1.1,2.3-2.3,2.3H40.7z" />
+                <path opacity="5.000000e-02" d="M8.5,45.7h64.2v29.4c0,1.5-1.2,2.7-2.7,2.7H40.6
+            C22.8,77.9,8.5,63.4,8.5,45.7L8.5,45.7z" />
+                <path id="iconHome" visibility="hidden" fill="#808080"
+                    d="M39.3,46l17.4-11.3v22.6L39.3,46z M37.3,34.7h-5v22.6h5V34.7z" />
+                <path id="iconPrev" fill="#808080" d="M39.3,46l17.4-11.3v22.6L39.3,46z M40,34.7H29.7l5.2,5L40,34.7z M37.3,42.2h-5v15
+            h5V42.2z" />
+                <path class="mouseover" visibility="hidden" opacity="0.05" fill="#FFFFFF" d="M40.7,77.9c-17.7,0-32-14.3-32-32s14.3-32,32-32h29.7
+            c1.2,0,2.3,1.1,2.3,2.3v59.4c0,1.4-1.1,2.3-2.3,2.3H40.7z" />
+            </g>
+            <g id="dropMarker" class="button" visibility="hidden" onClick="wwr_req(40157)">
+                <rect x="145.2" y="40.7" fill-opacity="0.25" stroke="#808080" stroke-dasharray="2, 4"
+                    stroke-miterlimit="10" rx="3" ry="3" width="28.4" height="28.4" />
+                <path id="+" fill="none" stroke="#808080" stroke-width="3" stroke-miterlimit="10"
+                    d="M159.4,63.3V46.5 M151.1,54.9h16.7" />
+                <rect id="dropMarkerHitbox" x="131.2" y="35.2" fill="none" width="56.6" height="44" />
+                <rect class="mouseover" visibility="hidden" x="145.2" y="40.7" opacity="0.15" fill="#FFFFFF"
+                    width="28.4" height="28.4" />
+            </g>
+        </svg>
+
     </div>
 
     <div id="transport_r2">
@@ -1068,6 +1376,130 @@
                 </g>
             </g>
         </svg>
+    </div>
+
+    <div id="backLoad" style="display:none">
+
+        <element id=trackRow2Svg>
+            <svg version="1.1" class="faderSvg" display="block" xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%"
+                viewBox="0 1 320 47" xml:space="preserve">
+                <rect x="0" fill="#333333" width="320" height="36" />
+                <rect id="fader_track" x="23" y="16.7" transform="matrix(-1 -1.224647e-16 1.224647e-16 -1 320 37.3333)"
+                    opacity="0.5" fill="#1A1A1A" width="274" height="4" />
+                <g class="fader">
+                    <g>
+                        <linearGradient id="fGrad1" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-114.0833"
+                            x2="245.0833" y2="-106.0833"
+                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
+                            <stop offset="0" style="stop-color:#212121" />
+                            <stop offset="1" style="stop-color:#949494" />
+                        </linearGradient>
+                        <rect x="38" y="0.5" fill="url(#fGrad1)" width="8" height="35" />
+
+                        <linearGradient id="fGrad2" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-106.0833"
+                            x2="245.0833" y2="-92.0833"
+                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
+                            <stop offset="0" style="stop-color:#FFFFFF" />
+                            <stop offset="0.9991" style="stop-color:#7A7A7A" />
+                        </linearGradient>
+                        <path fill="url(#fGrad2)" d="M26,0.5h12v35H26c-1.1,0-2-0.9-2-2v-31C24,1.4,24.9,0.5,26,0.5z" />
+
+                        <linearGradient id="fGrad3" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-91.0833"
+                            x2="245.0833" y2="-77.0833"
+                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
+
+                            <stop offset="0" style="stop-color:#9C9C9C" />
+                            <stop offset="1" style="stop-color:#4D4D4D" />
+                        </linearGradient>
+                        <path fill="url(#fGrad3)" d="M21,35.5c1.1,0,2-0.9,2-2v-31c0-1.1-0.9-2-2-2H9v35H21z" />
+
+                        <linearGradient id="fGrad4" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-77.0833"
+                            x2="245.0833" y2="-69.0833"
+                            gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -68.0833 263.0833)">
+                            <stop offset="0" style="stop-color:#FFFFFF" />
+                            <stop offset="0.1231" style="stop-color:#F2F2F2" />
+                            <stop offset="0.3517" style="stop-color:#CFCFCF" />
+                            <stop offset="0.6607" style="stop-color:#979797" />
+                            <stop offset="1" style="stop-color:#525252" />
+                        </linearGradient>
+                        <rect x="1" y="0.5" fill="url(#fGrad4)" width="8" height="35" />
+                    </g>
+                    <path id="outline_1_" d="M1,0.5h20c1.1,0,2,0.9,2,2v31c0,1.1-0.9,2-2,2H1V0.5 M24,2.5c0-1.1,0.9-2,2-2h20v35H26c-1.1,0-2-0.9-2-2
+                V2.5 M0.5,0v36H21c1.4,0,2.5-1.1,2.5-2.5c0,1.4,1.1,2.5,2.5,2.5h20.5V0H26c-1.4,0-2.5,1.1-2.5,2.5C23.5,1.1,22.4,0,21,0H0.5L0.5,0z
+                " />
+                    <path opacity="0.1" fill="#FFFFFF" d="M2,1.5h19c0.6,0,1,0.4,1,1v31c0,0.6-0.4,1-1,1H2V1.5 M25,2.5
+                c0-0.6,0.4-1,1-1h19v33H26c-0.6,0-1-0.4-1-1V2.5 M1,0.5v35h20c1.1,0,2-0.9,2-2v-31c0-1.1-0.9-2-2-2H1L1,0.5z M24,2.5v31
+                c0,1.1,0.9,2,2,2h20v-35H26C24.9,0.5,24,1.4,24,2.5L24,2.5z" />
+
+                    <linearGradient id="fGrad5" gradientUnits="userSpaceOnUse" x1="245.0833" y1="-1061.0476"
+                        x2="245.0833" y2="-1058.0729"
+                        gradientTransform="matrix(6.123234e-17 -1 -1 -6.123234e-17 -1034.0834 263.0833)">
+                        <stop offset="0" style="stop-color:#FFFFFF;stop-opacity:0" />
+                        <stop offset="0.5" style="stop-color:#FFFFFF" />
+                    </linearGradient>
+                    <path opacity="0.33" fill="url(#fGrad5)" d="M26,35.5h1v-1h-1c-0.6,0-1-0.4-1-1v-31c0-0.6,0.4-1,1-1
+                h1v-1h-1c-1,0-1.8,0.7-2,1.6v31.8C24.2,34.8,25,35.5,26,35.5z" />
+                </g>
+            </svg>
+        </element>
+
+        <element id=trackSendSvg>
+            <svg version="1.1" display="block" xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%"
+                viewBox="0 0 320 48" xml:space="preserve">
+                <rect class="sendPanelBg" fill="#333333" width="320" height="49" />
+                <path class="sendBg" fill="#262626" d="M244,0c-0.3,0-0.7,0-1,0v0H142h-17H27v0c-0.3,0-0.7,0-1,0C13.8,0,4,9.8,4,22s9.8,22,22,22
+            c0.3,0,0.7,0,1,0v0h98h17h101v0c0.3,0,0.7,0,1,0c12.2,0,22-9.8,22-22S256.2,0,244,0z" />
+                <line class="sendLine" style="pointer-events:none" fill="none" opacity="0.5" stroke="#404040"
+                    stroke-width="38" stroke-linecap="round" stroke-miterlimit="10" x1="27" y1="22" x2="130" y2="22" />
+                <text class="sendTitleText" style="pointer-events:none" transform="matrix(1 0 0 1 25 29)" fill="#A3A3A3"
+                    font-family="'Open Sans'" font-size="19px">Target Name</text>
+                <text class="sDbText" style="pointer-events:none" text-anchor="end" transform="matrix(1 0 0 1 250 27)"
+                    fill="#A3A3A3" font-family="'Open Sans'" font-size="12px">xx dB</text>
+                <circle class="sendThumb" opacity="0.5" fill="#808080" stroke="#262626" stroke-width="2"
+                    stroke-miterlimit="10" cx="26" cy="22" r="19" />
+
+                <g class="send_mute button">
+                    <g class="send_mute_off" visibility="visible">
+                        <path class="shadow" opacity="0.15" d="M314.4,45.2c0,1-0.8,1.8-1.8,1.8h-39c-1,0-1.8-0.8-1.8-1.8
+                        v-4.6h42.7v4.6H314.4z" />
+                        <linearGradient id="smoGrad" gradientUnits="userSpaceOnUse" x1="1720.0585" y1="-785.3847"
+                            x2="1720.0585" y2="-828.6583" gradientTransform="matrix(1 0 0 -1 -1427 -785)">
+                            <stop offset="0" style="stop-color:#404040" />
+                            <stop offset="1" style="stop-color:#333333" />
+                        </linearGradient>
+                        <path fill="url(#smoGrad)" d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39
+                        c0,1.2-1,2.1-2.1,2.1H273.6z" />
+                        <g>
+                            <path fill="#805240" d="M293.1,25.9L293.1,25.9l4.2-10h2.2v12.3h-1.8V19h-0.1l-3.9,9.1h-1.2l-4-9.5h-0.1v9.5h-1.8V15.9h2.3
+                            L293.1,25.9z" />
+                        </g>
+                        <path class="mouseover" visibility="hidden" opacity="0.05" fill="#FFFFFF"
+                            d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39 c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39c0,1.2-1,2.1-2.1,2.1H273.6z" />
+                    </g>
+                    <g class="send_mute_on" visibility="hidden">
+                        <path display="inline" fill="#F13F24" d="M273.6,43.6c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39
+                        c0,1.2-1,2.1-2.1,2.1H273.6z" />
+                        <g display="inline">
+                            <path fill="#FFFFFF" d="M293.1,25.9L293.1,25.9l4.2-10h2.2v12.3h-1.8V19h-0.1l-3.9,9.1h-1.2l-4-9.5h-0.1v9.5h-1.8V15.9h2.3
+                            L293.1,25.9z" />
+                        </g>
+                        <path class="mouseover" visibility="hidden" opacity="0" fill="#FFFFFF"
+                            d="M273.6,43.6 c-1.2,0-2.1-1-2.1-2.1v-39c0-1.2,1-2.1,2.1-2.1h39c1.2,0,2.1,1,2.1,2.1v39c0,1.2-1,2.1-2.1,2.1H273.6z" />
+                    </g>
+                    <path fill="#1A1A1A" d="M312.6,0.7c1,0,1.8,0.8,1.8,1.8v39c0,1-0.8,1.8-1.8,1.8h-39c-1,0-1.8-0.8-1.8-1.8v-39
+                    c0-1,0.8-1.8,1.8-1.8H312.6 M312.6,0.1h-39c-1.3,0-2.4,1.1-2.4,2.4v39c0,1.3,1.1,2.4,2.4,2.4h39c1.3,0,2.4-1.1,2.4-2.4v-39
+                    C315,1.2,313.9,0.1,312.6,0.1L312.6,0.1z" />
+                </g>
+            </svg>
+        </element>
+        <element id=button>
+            <button class="track_button"
+                style="width:33.3%;height:90px;font-size:xx-large;background-color:gray;float:left;" value=0 hidden
+                disabled>button</button>
+        </element>
+        <element id=last></element>
     </div>
 
 </body>
