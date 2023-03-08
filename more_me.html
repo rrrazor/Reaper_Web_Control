@@ -1096,6 +1096,11 @@
         function push_el(elem, is_down) {
             elem.style.fontSize = is_down ? "x-large" : "xx-large";
         }
+
+        function insert_marker() {
+            if (confirm('Insert a new marker at the current position?'))
+                wwr_req(40157)
+        }
     </script>
 </head>
 
@@ -1306,7 +1311,7 @@
                 <path class="mouseover" visibility="hidden" opacity="0.05" fill="#FFFFFF" d="M40.7,77.9c-17.7,0-32-14.3-32-32s14.3-32,32-32h29.7
             c1.2,0,2.3,1.1,2.3,2.3v59.4c0,1.4-1.1,2.3-2.3,2.3H40.7z" />
             </g>
-            <g id="dropMarker" class="button" visibility="hidden" onClick="wwr_req(40157)">
+            <g id="dropMarker" class="button" visibility="hidden" onClick="insert_marker()">
                 <rect x="145.2" y="40.7" fill-opacity="0.25" stroke="#808080" stroke-dasharray="2, 4"
                     stroke-miterlimit="10" rx="3" ry="3" width="28.4" height="28.4" />
                 <path id="+" fill="none" stroke="#808080" stroke-width="3" stroke-miterlimit="10"
