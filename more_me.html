@@ -1091,7 +1091,11 @@
                     }
                 }
             }
-        }    
+        }
+
+        function push_el(elem, is_down) {
+            elem.style.fontSize = is_down ? "x-large" : "xx-large";
+        }
     </script>
 </head>
 
@@ -1133,6 +1137,20 @@
     <!-- <hr class="rounded"> -->
 
     <div id="tempo" style="height: 100px;"></div>
+
+    <div style="width: 100%; background-color: #1a1a1a;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
+            <text id="status" onClick="prompt_seek()" ; text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 27.4)"
+                font-family="'Open Sans'" font-size="26px"></text>
+            <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
+                font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
+            <text id="prevMarker" onmousedown="push_el(this, true);wwr_req(41820)" onmouseup="push_el(this, false)"
+                x="50" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
+            <text id="nextMarker" onmousedown="push_el(this, true);wwr_req(41821)" onmouseup="push_el(this, false)"
+                x="270" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
+        </svg>
+    </div>
 
     <div>
         <svg id="nextPrev" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -1479,24 +1497,6 @@
                     <path class="mouseover" visibility="hidden" opacity="0.2" fill="#FFFFFF"
                         d="M49.7,98.8c-27.1,0-49-21.9-49-49s21.9-49,49-49s49,21.9,49,49 S76.9,98.8,49.7,98.8z" />
                 </g>
-            </g>
-        </svg>
-    </div>
-
-    <div style="width: 100%; background-color: #1a1a1a;">
-        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
-            <text id="status" onClick="prompt_seek()" ; text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 27.4)"
-                font-family="'Open Sans'" font-size="26px"></text>
-            <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
-                font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
-            <line fill="none" stroke="#545454" stroke-miterlimit="10" x1="23.1" y1="29.5" x2="35" y2="17.6" />
-            <g id="options" class="button">
-                <rect x="272.8" fill="#1A1A1A" width="47.2" height="47.2" />
-                <path fill="#404040"
-                    d="M302.3,18.7h-20.1v-2.2h20.1V18.7z M302.3,22h-20.1v2.2h20.1V22z M302.3,27.6h-20.1v2.2h20.1V27.6z" />
-                <path class="mouseover" visibility="hidden" opacity="0.1" fill="#FFFFFF"
-                    d="M302.3,18.7h-20.1v-2.2h20.1V18.7z M302.3,22h-20.1v2.2h20.1V22z M302.3,27.6h-20.1v2.2h20.1V27.6z" />
             </g>
         </svg>
     </div>
