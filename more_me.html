@@ -114,7 +114,7 @@
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
             selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
-            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1, once = true,
+            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1,
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], trackHeightsAr = [], trackNumbersAr = [], trackNamesAr = [], trackSendHwCntAr = [], trackSendCntAr = [],
@@ -449,7 +449,7 @@
                                             if (tok[3] & 512) { //track hidden in TCP
                                                 document.getElementById("track" + tok[1]).style.display = "none";
                                             }
-                                            else { document.getElementById("track" + tok[1]).style.display = "block"; }
+                                            else if (tok[3] == selectInputIdx) { document.getElementById("track" + tok[1]).style.display = "block"; }
 
                                             folderIcon = trackRow1Content.firstChild.getElementsByClassName("folder_icon")[0];
                                             if (tok[3] & 1) { folderIcon.style.visibility = "visible"; }
@@ -987,14 +987,10 @@
             var cloneTrackSend = document.getElementById("trackSendSvg").cloneNode(true);
             var drawnReceives = trackRcvCntAr[selectChoiceIdx];
             var drawnReceivesDone = receivesContent.childNodes.length;
-            var buttonsContent = document.getElementById("buttons");
-            var tempoContent = document.getElementById("tempo");
-            var controlsContent = document.getElementById("controls");
             var markerSelect = document.getElementById("markerSelect");
             var statusBPMDisplay = document.getElementById("bpm_status");
             if (drawnReceives < drawnReceivesDone || drawnReceives == null) {
                 if (receivesContent.lastChild) { receivesContent.removeChild(receivesContent.lastChild) }
-                // if (buttonsContent.lastChild) { buttonsContent.removeChild(buttonsContent.lastChild) }
                 // if (document.getElementById("trackSelect_in")) { document.getElementById("trackSelect_in").hidden = true; }
             }
             if (drawnReceives > drawnReceivesDone) {
@@ -1007,7 +1003,6 @@
             if (drawnReceives == null && faderContent.innerHTML) {
                 faderContent.innerHTML = ""
                 instructions.style.display = "block";
-                // buttonsContent.innerHTML = "";
             }
             if (drawnReceives >= 1 && faderContent.innerHTML === "") {
                 cloneFader.firstElementChild.setAttributeNS(null, "viewBox", "0 1 320 47");
@@ -1018,115 +1013,6 @@
             var bpm = currBPM();
             statusBPMDisplay.textContent = bpm ? bpm : '-';
             statusBPMDisplay.style.fill = "#a8a8a8";
-
-            if (once) {
-                // adding the buttons
-                var button_el = document.getElementById("button").cloneNode(true);
-                button_el.getElementsByClassName("track_button")[0].textContent = "FX";
-                buttonsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button_el.getElementsByClassName("track_button")[0].textContent = "Mute";
-                buttonsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button_el.getElementsByClassName("track_button")[0].textContent = "Rec";
-                buttonsContent.appendChild(button_el);
-
-                // tempo
-                function button_up(button) {
-                    return function (e) {
-                        button.style.backgroundColor = "gray";
-                        button.value = 0;
-                        return false;
-                    }
-                }
-
-                button_el = document.getElementById("button").cloneNode(true);
-                var button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "➖";
-                button.disabled = false;
-                button.hidden = false;
-                var commands =
-                    // "41820" // Move edit cursor to previous tempo or time signature change
-                    "41821;41820"
-                    + ";41130"; // Tempo: Decrease current project tempo 01 BPM
-                button.onmousedown = mouseDownEventActivate(commands, button);
-                button.onmouseup = button_up(button);
-                tempoContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "BPM";
-                button.hidden = false;
-                button.onclick = enterBPM;
-                tempoContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "➕";
-                button.hidden = false;
-                button.disabled = false;
-                commands =
-                    // "41820" // Move edit cursor to previous tempo or time signature change
-                    "41821;41820"
-                    + ";41129"; // Tempo: Increase current project tempo 01 BPM
-                button.onmousedown = mouseDownEventActivate(commands, button);
-                button.onmouseup = button_up(button);
-                tempoContent.appendChild(button_el);
-
-                // controls
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "⏮️";
-                button.disabled = false;
-                button.hidden = false;
-                button.onmousedown = mouseDownEventActivate("40172", button); // Markers: Go to previous marker/project start
-                button.onmouseup = button_up(button);
-                controlsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "▶️";
-                button.disabled = false;
-                button.hidden = false;
-                button.onmousedown = mouseDownEventHandler("40044"); // Transport: Play/stop
-                controlsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "⏭️";
-                button.disabled = false;
-                button.hidden = false;
-                button.onmousedown = mouseDownEventActivate("40173", button); // Markers: Go to next marker/project end
-                button.onmouseup = button_up(button);
-                controlsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "⏪️ Marker";
-                button.disabled = false;
-                button.hidden = false;
-                button.style.width = "50%";
-                button.style.height = "60px";
-                button.onmousedown = mouseDownEventActivate("41820", button); // Move edit cursor to previous tempo or time signature change
-                button.onmouseup = button_up(button);
-                controlsContent.appendChild(button_el);
-
-                button_el = document.getElementById("button").cloneNode(true);
-                button = button_el.getElementsByClassName("track_button")[0];
-                button.textContent = "⏩️ Marker";
-                button.disabled = false;
-                button.hidden = false;
-                button.style.width = "50%";
-                button.style.height = "60px";
-                button.onmousedown = mouseDownEventActivate("41821", button); // Move edit cursor to next tempo or time signature change
-                button.onmouseup = button_up(button);
-                controlsContent.appendChild(button_el);
-
-                once = false;
-            }
-
 
             //----------------------------------
             // Now do things based on what's been DRAWN
@@ -1157,52 +1043,8 @@
                     allTracksDiv.children[i].style.display = "none";
                 }
 
-                if (selectInputIdx == -1) {
-                    for (i = 0; i < buttonsContent.childElementCount; ++i) {
-                        var button = buttonsContent.childNodes[i].getElementsByClassName("track_button")[0];
-                        // button.disabled = true
-                        // button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
-                        button.hidden = true;
-                        buttonsContent.style.height = "0px";
-                    }
-                }
-                else // activate the elements
+                if (selectInputIdx != -1)
                 {
-                    buttonsContent.style.height = "100px";
-
-                    // FX
-                    var button_el = buttonsContent.childNodes[0];
-                    var button = button_el.getElementsByClassName("track_button")[0];
-                    button.hidden = false;
-                    if (trackHasFxAr[selectInputIdx]) {
-                        button.disabled = false;
-
-                        var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
-                        // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
-                        commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
-                        commands += ";41749"; // Open/close UI for FX #1 on last touched track
-                        button.onmousedown = mouseDownEventActivate(commands, button);
-                    }
-                    else
-                        button.disabled = true;
-
-                    // Mute
-                    button_el = buttonsContent.childNodes[1];
-                    button = button_el.getElementsByClassName("track_button")[0];
-                    button.hidden = false;
-                    button.disabled = false;
-                    button.style.backgroundColor = trackMutedAr[selectInputIdx] == 1 ? "tomato" : "grey";
-                    button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/MUTE/-1"); // sets mute for track. if value is <0, mute is toggled
-
-                    // rec
-                    button_el = buttonsContent.childNodes[2];
-                    button = button_el.getElementsByClassName("track_button")[0];
-                    button.hidden = false;
-                    button.disabled = false;
-                    button.textContent = "Rec";
-                    button.style.backgroundColor = trackRecAr[selectInputIdx] == 1 ? "tomato" : "grey";
-                    button.onmousedown = mouseDownEventHandler("SET/TRACK/" + selectInputIdx + "/RECARM/-1"); // sets record arm enabled for track. if value is <0, record arm enabled is toggled
-
                     allTracksDiv.children[selectInputIdx - 1].style.display = "block";
                 }
             }
@@ -1216,33 +1058,6 @@
                     option.text = id + ". " + name;
                     option.style.color = color == '' ? "#A9ABAB" : color;
                     markerSelect.add(option);
-                }
-            }
-            // }
-
-            var button_el = tempoContent.childNodes[1];
-            if (button_el) {
-                var button = button_el.getElementsByClassName("track_button")[0];
-                var bpm_str = "";
-                if (playstate & 1 && (pos_sec > pos_sec_prev)) {
-                    bpm_str += currBPM() + ' ';
-                    button.disabled = false;
-                }
-                else
-                    button.disabled = true;
-                button.textContent = bpm_str + "BPM";
-            }
-
-            button_el = controlsContent.childNodes[1];
-            if (button_el) {
-                var button = button_el.getElementsByClassName("track_button")[0];
-                if (playstate & 1) {
-                    button.textContent = "⏹";
-                    button.style.backgroundColor = "tomato";
-                }
-                else {
-                    button.textContent = "▶️";
-                    button.style.backgroundColor = "green";
                 }
             }
 
@@ -1470,9 +1285,6 @@
         <option>Select your input track...</option>
     </select><br><br>
 
-    <div id="buttons"></div>
-
-    <br>
     <div id="tracks"></div>
 
     <hr class="rounded">
@@ -1480,25 +1292,7 @@
     <!-- <div id="marker_name"></div> -->
     <select id="markerSelect">
         <option>HOME</option>
-    </select><br><br>
-    <div id="controls" style="height: 100px;"></div><br><br><br>
-    <!-- <hr class="rounded"> -->
-
-    <div id="tempo" style="height: 100px;"></div>
-
-    <div style="width: 100%; background-color: #1a1a1a;">
-        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
-            <text id="status" onClick="prompt_seek()" ; text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 27.4)"
-                font-family="'Open Sans'" font-size="26px"></text>
-            <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
-                font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
-            <text id="prevMarker" onmousedown="push_el(this, true);wwr_req(41820)" onmouseup="push_el(this, false)"
-                x="55" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
-            <text id="nextMarker" onmousedown="push_el(this, true);wwr_req(41821)" onmouseup="push_el(this, false)"
-                x="265" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
-        </svg>
-    </div>
+    </select><br>
 
     <div>
         <svg id="nextPrev" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -1796,6 +1590,20 @@
         </svg>
     </div>
 
+    <div style="width: 100%; background-color: #1a1a1a;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
+            <text id="status" onClick="prompt_seek()" ; text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 27.4)"
+                font-family="'Open Sans'" font-size="26px"></text>
+            <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
+                font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
+            <text id="prevMarker" onmousedown="push_el(this, true);wwr_req(41820)" onmouseup="push_el(this, false)"
+                x="55" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
+            <text id="nextMarker" onmousedown="push_el(this, true);wwr_req(41821)" onmouseup="push_el(this, false)"
+                x="265" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
+        </svg>
+    </div><br>
+
     <div id="transport_r3" style="display:block; margin: auto; align-items: center;">
 
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
@@ -2061,8 +1869,7 @@
                 </g>
                 <text class="meterReadout" text-anchor="end" transform="matrix(1 0 0 1 147 46)" fill="#FFFFFF"
                     opacity="0.75" font-family="'Open Sans'" font-size="11px">dB</text>
-                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9"
-                    onClick="hitbox(event.target.id)" />
+                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9"/>
             </svg>
         </element>
 
