@@ -718,6 +718,7 @@
             var tempoContent = document.getElementById("tempo");
             var controlsContent = document.getElementById("controls");
             var markerSelect = document.getElementById("markerSelect");
+            var statusBPMDisplay = document.getElementById("bpm_status");
             if (drawnReceives < drawnReceivesDone || drawnReceives == null) {
                 if (receivesContent.lastChild) { receivesContent.removeChild(receivesContent.lastChild) }
                 // if (buttonsContent.lastChild) { buttonsContent.removeChild(buttonsContent.lastChild) }
@@ -739,6 +740,10 @@
                 instructions.style.display = "none";
             }
 
+            var bpm = currBPM();
+            statusBPMDisplay.textContent = bpm ? bpm : '-';
+            statusBPMDisplay.style.fill = "#a8a8a8";
+
             if (once) {
                 // adding the buttons
                 var button_el = document.getElementById("button").cloneNode(true);
@@ -759,28 +764,6 @@
                         button.style.backgroundColor = "gray";
                         button.value = 0;
                         return false;
-                    }
-                }
-
-                function enterBPM() {
-                    wwr_req("41821;41820");
-                    var curr_bpm = currBPM();
-                    var new_bpm = prompt("Enter new BPM", curr_bpm);
-                    if (new_bpm == null)
-                        return;
-
-                    var diff = Math.abs(new_bpm - curr_bpm);
-                    var tens = Math.floor(diff / 10);
-                    var ones = diff % 10;
-
-                    var comm_tens = new_bpm < curr_bpm ? "41136" : "41135";
-                    for (i = 0; i < tens; ++i) {
-                        wwr_req(comm_tens);
-                    }
-
-                    var comm_ones = new_bpm < curr_bpm ? "41130" : "41129";
-                    for (i = 0; i < ones; ++i) {
-                        wwr_req(comm_ones);
                     }
                 }
 
@@ -1093,6 +1076,28 @@
             }
         }
 
+        function enterBPM() {
+            wwr_req("41821;41820");
+            var curr_bpm = currBPM();
+            var new_bpm = prompt("Enter new BPM", curr_bpm);
+            if (new_bpm == null)
+                return;
+
+            var diff = Math.abs(new_bpm - curr_bpm);
+            var tens = Math.floor(diff / 10);
+            var ones = diff % 10;
+
+            var comm_tens = new_bpm < curr_bpm ? "41136" : "41135";
+            for (i = 0; i < tens; ++i) {
+                wwr_req(comm_tens);
+            }
+
+            var comm_ones = new_bpm < curr_bpm ? "41130" : "41129";
+            for (i = 0; i < ones; ++i) {
+                wwr_req(comm_ones);
+            }
+        }
+
         function push_el(elem, is_down) {
             elem.style.fontSize = is_down ? "x-large" : "xx-large";
         }
@@ -1151,9 +1156,9 @@
             <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
                 font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
             <text id="prevMarker" onmousedown="push_el(this, true);wwr_req(41820)" onmouseup="push_el(this, false)"
-                x="50" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
+                x="55" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
             <text id="nextMarker" onmousedown="push_el(this, true);wwr_req(41821)" onmouseup="push_el(this, false)"
-                x="270" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
+                x="265" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
         </svg>
     </div>
 
@@ -1503,6 +1508,22 @@
                         d="M49.7,98.8c-27.1,0-49-21.9-49-49s21.9-49,49-49s49,21.9,49,49 S76.9,98.8,49.7,98.8z" />
                 </g>
             </g>
+        </svg>
+    </div>
+
+    <div style="width: 100%; background-color: #1a1a1a;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
+            <text id="bpm_status" onClick="enterBPM()" ; text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 27.4)"
+                font-family="'Open Sans'" font-size="26px">-</text>
+            <text id="bpm_txt" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
+                font-family="'Open Sans'" font-size="9px">BPM</text>
+            <text id="bpm_minus" onmousedown="push_el(this, true);wwr_req('41821;41820;41130')"
+                onmouseup="push_el(this, false)" x="55" y="37" text-anchor="middle"
+                style="font-size: xx-large;">➖</text>
+            <text id="bpm_plus" onmousedown="push_el(this, true);wwr_req('41821;41820;41129')"
+                onmouseup="push_el(this, false)" x="265" y="37" text-anchor="middle"
+                style="font-size: xx-large;">➕</text>
         </svg>
     </div>
 
