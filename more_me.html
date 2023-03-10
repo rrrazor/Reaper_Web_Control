@@ -151,24 +151,6 @@
             }
         }
 
-        function mouseDownEventActivate(msg, button) {
-            return function (e) {
-                if (button.value == 0) {
-                    button.style.backgroundColor = "tomato";
-                    button.value = 1;
-                }
-                else {
-                    button.style.backgroundColor = "gray";
-                    button.value = 0;
-                }
-
-                if (typeof e == 'undefined') e = event;
-                if (e.preventDefault) e.preventDefault();
-                wwr_req(msg);
-                return false;
-            }
-        }
-
         function mouseDownEventHandler(msg) {
             return function (e) {
                 if (typeof e == 'undefined') e = event;
@@ -1054,7 +1036,7 @@
                         // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
                         commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
                         commands += ";41749"; // Open/close UI for FX #1 on last touched track
-                        fx_button.onmousedown = mouseDownEventActivate(commands, button);
+                        fx_button.onmousedown = mouseDownEventHandler(commands);
                         fx_button.setAttribute('href','track_fx_norm.ico');
                     }
                 }
@@ -1880,7 +1862,7 @@
                 </g>
                 <text class="meterReadout" text-anchor="end" transform="matrix(1 0 0 1 147 46)" fill="#FFFFFF"
                     opacity="0.75" font-family="'Open Sans'" font-size="11px">dB</text>
-                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9"/>
+                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9" onClick="hitbox(event.target.id)"/>
                 <image class="fx_button" href="track_fx_empty.ico" x="185" y="5" style="width:30px;height:30px;"/>
             </svg>
         </element>
@@ -2000,11 +1982,6 @@
                     C315,1.2,313.9,0.1,312.6,0.1L312.6,0.1z" />
                 </g>
             </svg>
-        </element>
-        <element id=button>
-            <button class="track_button"
-                style="width:33.3%;height:90px;font-size:xx-large;background-color:gray;float:left;" value=0 hidden
-                disabled>button</button>
         </element>
         <element id=last></element>
     </div>
