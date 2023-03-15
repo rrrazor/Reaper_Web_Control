@@ -118,7 +118,7 @@
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], trackHeightsAr = [], trackNumbersAr = [], trackNamesAr = [], trackSendHwCntAr = [], trackSendCntAr = [],
-            trackFlagsAr = [], trackPeakAr = [], recarmCountAr = [], faderConAr = [];
+            trackFlagsAr = [], trackPeakAr = [], recarmCountAr = [], faderConAr = [], ts_numerator = 0, ts_denominator = 0;
 
         function lumaOffset(c) {
             var c = c.substring(1);
@@ -602,6 +602,10 @@
                                 playLine.setAttributeNS(null, "stroke-dashoffset", playLineArc);
                                 playLine.setAttribute("transform", "rotate(" + playLineRotate + ",151.8,52.4)");
                             }
+                            ts_numerator = tok[6];
+                            ts_denominator = tok[7];
+                            document.getElementById("tsNum").textContent = ts_numerator;
+                            document.getElementById("tsDen").textContent = ts_denominator;
                         }
 
                         break;
@@ -1025,19 +1029,18 @@
                     allTracksDiv.children[i].style.display = "none";
                 }
 
-                if (selectInputIdx != -1)
-                {
+                if (selectInputIdx != -1) {
                     var this_track = allTracksDiv.children[selectInputIdx - 1];
                     this_track.style.display = "block";
                     var fx_button = this_track.getElementsByClassName("fx_button")[0];
-                    
+
                     if (trackHasFxAr[selectInputIdx]) {
                         var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
                         // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
                         commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
                         commands += ";41749"; // Open/close UI for FX #1 on last touched track
                         fx_button.onmousedown = mouseDownEventHandler(commands);
-                        fx_button.setAttribute('href','item_fx_on.ico');
+                        fx_button.setAttribute('href', 'item_fx_on.ico');
                     }
                 }
             }
@@ -1657,6 +1660,11 @@
                 font-family="'Open Sans'" font-size="26px">-</text>
             <text id="bpm_txt" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
                 font-family="'Open Sans'" font-size="9px">BPM</text>
+            <text id="tsNum" text-anchor="end" transform="matrix(1 0 0 1 200 23.3)" fill="#A8A8A8"
+                font-family="'Open Sans'" font-size="12px">8</text>
+            <text id="tsDen" transform="matrix(1 0 0 1 205 33.1)" fill="#A8A8A8" font-family="'Open Sans'"
+                font-size="12px">999</text>
+            <line fill="none" stroke="#545454" stroke-miterlimit="10" x1="197" y1="29.5" x2="209" y2="17.6" />
             <text id="bpm_minus" onmousedown="push_el(this, true);wwr_req('41821;41820;41130')"
                 onmouseup="push_el(this, false)" x="55" y="37" text-anchor="middle"
                 style="font-size: xx-large;">➖</text>
@@ -1862,8 +1870,9 @@
                 </g>
                 <text class="meterReadout" text-anchor="end" transform="matrix(1 0 0 1 147 46)" fill="#FFFFFF"
                     opacity="0.75" font-family="'Open Sans'" font-size="11px">dB</text>
-                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9" onClick="hitbox(event.target.id)"/>
-                <image class="fx_button" href="item_fx_off.ico" x="193" y="6" style="width:23px;height:23px;"/>
+                <rect class="hitbox" x="49" y="1" opacity="0" width="173" height="53.9"
+                    onClick="hitbox(event.target.id)" />
+                <image class="fx_button" href="item_fx_off.ico" x="193" y="6" style="width:23px;height:23px;" />
             </svg>
         </element>
 
