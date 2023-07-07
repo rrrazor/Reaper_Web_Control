@@ -1,4 +1,4 @@
-<!-- 5.0.2 -->
+<!-- 5.1.0 -->
 <!doctype html>
 <html>
 
@@ -105,12 +105,29 @@
         .button:active .active {
             visibility: visible;
         }
+
+        label {
+            font-size: 2em;
+            color: black;
+            vertical-align:top;
+        }
+        
+        input[type="checkbox"] {
+            height:40px;
+            width:40px;
+            cursor:pointer;
+            position: relative;
+        }
     </style>
 
     <script type="text/javascript">
+        const pre_roll_play = "41818";
+        const pre_roll_rec = "41819";
 
         wwr_req_recur("NTRACK;TRACK;BEATPOS;TRANSPORT", 10);
         wwr_req_recur("MARKER;REGION", 500);
+        wwr_req_recur("GET/" + pre_roll_play, 500);
+        wwr_req_recur("GET/" + pre_roll_rec, 500);
         wwr_start();
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
@@ -894,6 +911,23 @@
                             newMrMapLength = mrMapAr.length;
                         }
                         break;
+                    case "CMDSTATE":
+                        if (tok.length == 3)
+                        {
+                            var str = "";
+                            if (tok[1] == pre_roll_play)
+                                str = "pre roll PLAY: ";
+                            else if (tok[1] == pre_roll_rec)
+                                str = "pre roll REC: ";
+                            
+                            var state = tok[2];
+                            if (state > 0)
+                                str += "ON";
+                            else
+                                str += "OFF";
+                            console.log(str, state);
+                        }
+                        break;
                 }
             }
 
@@ -1666,6 +1700,33 @@
                 style="font-size: xx-large;">➕</text>
         </svg>
     </div>
+
+    <div style="width: 100%;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
+            <text id="bpm_txt" text-anchor="start" ; transform="matrix(1 0 0 1 90 31)"
+                font-family="'Open Sans'" font-size="17px">Pre-roll before playback</text>
+            <text id="bpm_minus" onmousedown="push_el(this, true);wwr_req(pre_roll_play)"
+                onmouseup="push_el(this, false)" x="55" y="37" text-anchor="middle"
+                style="font-size: xx-large;">☑️</text>
+        </svg>
+    </div>
+
+    <div style="width: 100%;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 47.2" xml:space="preserve">
+            <text id="bpm_txt" text-anchor="start" ; transform="matrix(1 0 0 1 90 31)"
+                font-family="'Open Sans'" font-size="17px">Pre-roll before recording</text>
+            <text id="bpm_minus" onmousedown="push_el(this, true);wwr_req(pre_roll_rec)"
+                onmouseup="push_el(this, false)" x="55" y="37" text-anchor="middle"
+                style="font-size: xx-large;">☑️</text>
+        </svg>
+    </div>
+
+    <div>
+        <input type="checkbox" id="pre_roll_play_chbx" name="pre_roll_play_chbx">
+        <label for="pre_roll_play_chbx">Pre-roll before playback</label>
+      </div>
 
     <div id="backLoad" style="display:none">
 
