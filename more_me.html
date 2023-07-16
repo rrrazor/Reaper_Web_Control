@@ -1,4 +1,4 @@
-<!-- 5.1.0 -->
+<!-- 5.0.3 -->
 <!doctype html>
 <html>
 
@@ -24,24 +24,7 @@
             cursor: default;
         }
 
-        #tracks {
-            flex-basis: 100%;
-        }
-
         #trackSelect {
-            width: 100%;
-            color: #A9ABAB;
-            background-color: #262626;
-            border: none;
-            font-size: 1.5em;
-            padding: 3%;
-            -webkit-border-radius: 20px;
-            -moz-border-radius: 20px;
-            border-radius: 20px;
-            -webkit-appearance: none;
-        }
-
-        #trackSelect_in {
             width: 100%;
             color: #A9ABAB;
             background-color: #262626;
@@ -347,7 +330,6 @@
 
                         if (tok.length > 5 && idx != 0) {
                             var last_elem = document.getElementById("last");
-                            var allTracksDiv = document.getElementById("tracks");
                             var trackFound = document.getElementById("track" + tok[1]);
 
                             if (!trackFound) {
@@ -365,7 +347,6 @@
                                 var trackSendsDiv = document.createElement("div");
                                 trackSendsDiv.id = ("sendsTrack" + idx);
 
-                                if (trackDiv && allTracksDiv) { allTracksDiv.appendChild(trackDiv); }
                                 trackDiv.appendChild(trackRow1Div);
                                 trackDiv.appendChild(trackRow2Div);
                                 trackDiv.appendChild(trackSendsDiv);
@@ -1008,7 +989,6 @@
             var statusBPMDisplay = document.getElementById("bpm_status");
             if (drawnReceives < drawnReceivesDone || drawnReceives == null) {
                 if (receivesContent.lastChild) { receivesContent.removeChild(receivesContent.lastChild) }
-                // if (document.getElementById("trackSelect_in")) { document.getElementById("trackSelect_in").hidden = true; }
             }
             if (drawnReceives > drawnReceivesDone) {
                 var sendDiv = document.createElement("div");
@@ -1033,49 +1013,7 @@
 
             //----------------------------------
             // Now do things based on what's been DRAWN
-            //----------------------------------        
-
-            // if (drawnReceives >= 1 && faderContent.innerHTML != "") { // on a musician's page
-            // enable and fill the input selector
-            var trackSelect_in = document.getElementById("trackSelect_in");
-            trackSelect_in.hidden = false;
-            if (trackSelect_in.options.length == 1) {
-                for (x = 1; x < nTrack; x++) { // except MASTER
-                    if (trackIsMonitorAr[x] === 0) { //!
-                        var option = document.createElement("option");
-                        option.text = trackNameAr[x];
-                        trackSelect_in.add(option);
-                    }
-                }
-            }
-
-            // read the selection
-            var selectChoice = trackSelect_in.value;
-            if (selectChoice != selectInputOld) {
-                selectInputIdx = trackNameAr.indexOf(selectChoice);
-                selectInputOld = selectChoice;
-
-                var allTracksDiv = document.getElementById("tracks");
-                for (i = 0; i < allTracksDiv.childElementCount; ++i) {
-                    allTracksDiv.children[i].style.display = "none";
-                }
-
-                if (selectInputIdx != -1)
-                {
-                    var this_track = allTracksDiv.children[selectInputIdx - 1];
-                    this_track.style.display = "block";
-                    var fx_button = this_track.getElementsByClassName("fx_button")[0];
-                    
-                    if (trackHasFxAr[selectInputIdx]) {
-                        var commands = "40769"; // Unselect (clear selection of) all tracks/items/envelope points
-                        // commands += ";SET/TRACK/" + selectInputIdx + "/SEL/-1"; // sets selection for track. if value is <0, selection is toggled
-                        commands += ";" + (40938 + selectInputIdx); // Track: Select track 01
-                        commands += ";41749"; // Open/close UI for FX #1 on last touched track
-                        fx_button.onmousedown = mouseDownEventHandler(commands);
-                        fx_button.setAttribute('href', 'track_fx_norm.ico');
-                    }
-                }
-            }
+            //----------------------------------
 
             // enable and fill the marker selector
             markerSelect.hidden = false;
@@ -1306,14 +1244,6 @@
     <div class="trackRow2"></div>
 
     <div id="receives"></div>
-
-    <hr class="rounded">
-
-    <select id="trackSelect_in">
-        <option>Select your input track...</option>
-    </select><br><br>
-
-    <div id="tracks"></div>
 
     <hr class="rounded">
 
