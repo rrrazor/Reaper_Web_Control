@@ -1,4 +1,4 @@
-<!-- 5.0.4 -->
+<!-- 5.0.5 -->
 <!doctype html>
 <html>
 
@@ -1043,7 +1043,9 @@
                 if (!found)
                     newMarker = -1;
 
+                var users_changes = false; // WTF
                 if (newMarker != currMarker) {
+                    users_changes = true;
                     markerSelect.selectedIndex = newMarker + 1;
                     var color = markerSelect.children[newMarker + 1].style.color;
                     markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
@@ -1055,15 +1057,17 @@
                 if (selectChoice != selectMarkerOld) {
                     selectMarkerIdx = selectChoice - 1;
                     selectMarkerOld = selectChoice;
-
-                    if (selectMarkerIdx == -1) {
-                        wwr_req("SET/POS/0");
-                        markerSelect.style.color = markerSelect.children[0].style.color;
-                    }
-                    else {
-                        wwr_req("SET/POS_STR/m" + MarkersAr[selectMarkerIdx][1]);
-                        var color = markerSelect.children[selectMarkerIdx + 1].style.color;
-                        markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
+                    if (!users_changes)
+                    {
+                        if (selectMarkerIdx == -1) {
+                            wwr_req("SET/POS/0");
+                            markerSelect.style.color = markerSelect.children[0].style.color;
+                        }
+                        else {
+                            wwr_req("SET/POS_STR/m" + MarkersAr[selectMarkerIdx][1]);
+                            var color = markerSelect.children[selectMarkerIdx + 1].style.color;
+                            markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
+                        }
                     }
                     currMarker = selectMarkerIdx;
                 }
