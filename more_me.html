@@ -1,4 +1,4 @@
-<!-- 5.0.3 -->
+<!-- 5.0.4 -->
 <!doctype html>
 <html>
 
@@ -509,6 +509,8 @@
                             if (tok[3] & 8) sendMuted = ", MUTED";
 
                             var trackSendsContent = document.getElementById("sendsTrack" + tok[1]);
+                            if (!trackSendsContent)
+                                break;
                             if (trackSendsContent.childNodes.length > 0) {
                                 var thisSendDiv = trackSendsContent.childNodes[tok[2]];
                                 if (thisSendDiv != null) {
