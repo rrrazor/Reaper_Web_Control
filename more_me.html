@@ -117,7 +117,6 @@
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
             selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
             pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1,
-            pre_roll_play_enabled = false, pre_roll_rec_enabled = false,
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], trackHeightsAr = [], trackNumbersAr = [], trackNamesAr = [], trackSendHwCntAr = [], trackSendCntAr = [],
@@ -899,14 +898,24 @@
                     case "CMDSTATE":
                         if (tok.length == 3)
                         {
-                            var enabled = false;
-                            if (tok[2] > 0)
-                                enabled = true;
-
                             if (tok[1] == cmd_pre_roll_play)
-                                pre_roll_play_enabled = enabled;
+                                var elem = document.getElementById("pre_roll_play_box");
                             else if (tok[1] == cmd_pre_roll_rec)
-                                pre_roll_rec_enabled = enabled;
+                                var elem = document.getElementById("pre_roll_rec_box");
+
+                            if (elem)
+                            {
+                                var enabled = false;
+                                if (tok[2] > 0)
+                                    enabled = true;
+
+                                var new_val = enabled ? "☑️" : "⬜";
+                                if (elem.textContent != new_val)
+                                {
+                                    elem.textContent = new_val;
+                                    push_el(elem, false);
+                                }
+                            }
                         }
                         break;
                 }
@@ -1130,9 +1139,6 @@
                     }
                 }
             }
-
-            document.getElementById("pre_roll_play_chbx").checked = pre_roll_play_enabled;
-            document.getElementById("pre_roll_rec_chbx").checked = pre_roll_rec_enabled;
         }
 
         trackHeightsAr[0] = 0;
@@ -1638,14 +1644,24 @@
         </svg>
     </div>
 
-    <div style="text-align: left; margin-left: 10svi;">
-        <input type="checkbox" id="pre_roll_play_chbx" name="pre_roll_play_chbx" onclick="wwr_req(cmd_pre_roll_play)">
-        <label for="pre_roll_play_chbx">Pre-roll before playback</label>
+    <div style="width: 100%;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 40" xml:space="preserve">
+            <text id="pre_roll_play_text" text-anchor="start" ; transform="matrix(1 0 0 1 90 28)"
+                font-family="'Open Sans'" font-size="17px">Pre-roll before playback</text>
+            <text id="pre_roll_play_box" onmousedown="push_el(this, true);wwr_req(cmd_pre_roll_play)"
+                x="55" y="33" text-anchor="middle" style="font-size: xx-large;">☑️</text>
+        </svg>
     </div>
 
-    <div style="text-align: left; margin-left: 10svi;">
-        <input type="checkbox" id="pre_roll_rec_chbx" name="pre_roll_rec_chbx" onclick="wwr_req(cmd_pre_roll_rec)">
-        <label for="pre_roll_rec_chbx">Pre-roll before recording</label>
+    <div style="width: 100%;">
+        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            width="100%" height="100%" viewBox="0 0 320 40" xml:space="preserve">
+            <text id="pre_roll_rec_text" text-anchor="start" ; transform="matrix(1 0 0 1 90 28)"
+                font-family="'Open Sans'" font-size="17px">Pre-roll before recording</text>
+            <text id="pre_roll_rec_box" onmousedown="push_el(this, true);wwr_req(cmd_pre_roll_rec)"
+                x="55" y="33" text-anchor="middle" style="font-size: xx-large;">☑️</text>
+        </svg>
     </div>
 
     <div id="backLoad" style="display:none">
