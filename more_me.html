@@ -107,6 +107,8 @@
     <script type="text/javascript">
         const cmd_pre_roll_play = "41818";
         const cmd_pre_roll_rec = "41819";
+        const region_start_pos_idx = 3;
+        const region_end_pos_idx = 4;
 
         wwr_req_recur("NTRACK;TRACK;BEATPOS;TRANSPORT", 10);
         wwr_req_recur("MARKER;REGION", 500);
@@ -810,7 +812,7 @@
                                     if (!this['r' + i + 'Name']) { this['r' + i + 'Name'] = this['r' + i + 'Idx'] }
                                     document.getElementById('r' + i + 'Name').textContent = this['r' + i + 'Name'];
                                     document.getElementById('r' + i + 'Name').setAttributeNS(null, "fill", lumaOffset(this['rCol' + i]));
-                                    
+
                                     // trim
                                     var name_el = document.getElementById('r' + i + 'Name');
                                     var rect_el = document.getElementById('r' + i + 'Rect');
@@ -818,8 +820,7 @@
                                     {
                                         var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
                                         var curr_str = name_el.textContent;
-                                        var new_str_len = curr_str.length * ratio;
-                                        name_el.textContent = curr_str.slice(0, new_str_len);
+                                        name_el.textContent = curr_str.slice(0, curr_str.length * ratio);
                                     }
 
                                     this['r' + i + 'NamePos'] = this['r' + i + 'StalkLx'] + ((this['r' + i + 'StalkRx'] - this['r' + i + 'StalkLx']) / 2);
@@ -1038,13 +1039,58 @@
 
             // enable and fill the marker selector
             markerSelect.hidden = false;
-            if (markerSelect.options.length == 1) {
+            if (markerSelect.options.length == 1)
+            {
+                const options_start_pos_idx = 0;
+                const options_end_pos_idx = 1;
+                const options_data_idx = 2;
+                const options_is_marker_idx = 3;
+                var options = [];
+
+                function compareOptions(a, b)
+                {
+                    return a[options_start_pos_idx] - b[options_start_pos_idx];
+                }
+
+                for (i = 0; i < g_regions.length; i++)
+                {
+                    var option = document.createElement("option");
+                    [tag, name, id, start_pos, end_pos, color] = g_regions[i];
+                    option.text = 'R' + id + ". " + name;
+                    option.style.color = color == '' ? "#A9ABAB" : ("#" + (color | 0x1000000).toString(16).substr(-6));
+                    options.push([start_pos, end_pos, option, false]);
+                }
+
                 for (x = 0; x < MarkersAr.length; x++) {
                     var option = document.createElement("option");
                     [name, id, position, color] = MarkersAr[x];
-                    option.text = id + ". " + name;
+                    option.text = 'M' + id + ". " + name;
                     option.style.color = color == '' ? "#A9ABAB" : color;
-                    markerSelect.add(option);
+                    options.push([position, position, option, true]);
+                }
+
+                options.sort(compareOptions);
+
+                var current_region = -1;
+                for (i = 0; i < options.length; i++)
+                {
+                    if (current_region != -1)
+                    {
+                        if (options[i][options_start_pos_idx] > options[current_region][options_end_pos_idx])
+                            current_region = -1;
+                    }
+
+                    if (!options[i][options_is_marker_idx]) // region
+                    {
+                        if (current_region == -1)
+                            current_region = i;
+                    }
+                    else // marker
+                    {
+                        if (current_region != -1)
+                            options[i][options_data_idx].text = "⨽ " + options[i][options_data_idx].text;
+                    }
+                    markerSelect.add(options[i][options_data_idx]);
                 }
             }
 
