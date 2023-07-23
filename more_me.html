@@ -1,4 +1,4 @@
-<!-- 5.1.0 -->
+<!-- 5.2.0 -->
 <!doctype html>
 <html>
 
@@ -810,6 +810,18 @@
                                     if (!this['r' + i + 'Name']) { this['r' + i + 'Name'] = this['r' + i + 'Idx'] }
                                     document.getElementById('r' + i + 'Name').textContent = this['r' + i + 'Name'];
                                     document.getElementById('r' + i + 'Name').setAttributeNS(null, "fill", lumaOffset(this['rCol' + i]));
+                                    
+                                    // trim
+                                    var name_el = document.getElementById('r' + i + 'Name');
+                                    var rect_el = document.getElementById('r' + i + 'Rect');
+                                    if (name_el.textLength.baseVal.value > rect_el.width.baseVal.value)
+                                    {
+                                        var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
+                                        var curr_str = name_el.textContent;
+                                        var new_str_len = curr_str.length * ratio;
+                                        name_el.textContent = curr_str.slice(0, new_str_len);
+                                    }
+
                                     this['r' + i + 'NamePos'] = this['r' + i + 'StalkLx'] + ((this['r' + i + 'StalkRx'] - this['r' + i + 'StalkLx']) / 2);
                                     document.getElementById('r' + i + 'Name').setAttributeNS(null, "transform", "matrix(1 0 0 1 " + this['r' + i + 'NamePos'] + " 31)");
                                 }
