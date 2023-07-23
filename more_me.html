@@ -107,8 +107,8 @@
     <script type="text/javascript">
         const cmd_pre_roll_play = "41818";
         const cmd_pre_roll_rec = "41819";
+        const region_id_idx = 2;
         const region_start_pos_idx = 3;
-        const region_end_pos_idx = 4;
 
         wwr_req_recur("NTRACK;TRACK;BEATPOS;TRANSPORT", 10);
         wwr_req_recur("MARKER;REGION", 500);
@@ -118,7 +118,7 @@
 
         var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0,
             selectInputIdx = 0, selectInputOld = -1, trackMutedAr = [], trackHasFxAr = [], pos_sec = 0, pos_sec_prev = 0, trackRecAr = [],
-            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerIdx = -1, selectMarkerOld = -1,
+            pos_beat = 0, pos_beat_prev = 0, playstate = 0, MarkersAr = [], currMarker = -1, selectMarkerOld = -1,
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], trackHeightsAr = [], trackNumbersAr = [], trackNamesAr = [], trackSendHwCntAr = [], trackSendCntAr = [],
@@ -1058,6 +1058,7 @@
                     [tag, name, id, start_pos, end_pos, color] = g_regions[i];
                     option.text = 'R' + id + ". " + name;
                     option.style.color = color == '' ? "#A9ABAB" : ("#" + (color | 0x1000000).toString(16).substr(-6));
+                    option.id = 'r' + id;
                     options.push([start_pos, end_pos, option, false]);
                 }
 
@@ -1066,6 +1067,7 @@
                     [name, id, position, color] = MarkersAr[x];
                     option.text = 'M' + id + ". " + name;
                     option.style.color = color == '' ? "#A9ABAB" : color;
+                    option.id = 'm' + id;
                     options.push([position, position, option, true]);
                 }
 
@@ -1096,45 +1098,81 @@
 
             if (markerSelect.options.length > 1) {
                 var found = false;
-                var newMarker = currMarker;
+                var new_marker = -1;
+                var select_marker = 'm';
+                var curr_pos = parseFloat(pos_sec) + 0.0001;
+                var marker_dist = -1;
+
                 for (i = MarkersAr.length - 1; i >= 0; --i) {
                     [name, id, position, color] = MarkersAr[i];
-                    if (parseFloat(position) < parseFloat(pos_sec) + 0.0001) {
-                        newMarker = i;
+                    if (parseFloat(position) < curr_pos) {
+                        marker_dist = curr_pos - parseFloat(position);
+                        new_marker = id;
                         found = true;
                         break;
                     }
                 }
-                if (!found)
-                    newMarker = -1;
 
-                var users_changes = false; // WTF
-                if (newMarker != currMarker) {
-                    users_changes = true;
-                    markerSelect.selectedIndex = newMarker + 1;
-                    var color = markerSelect.children[newMarker + 1].style.color;
+                var new_region = -1;
+                var region_dist = -1;
+                for (i = g_regions.length - 1; i >= 0; --i)
+                {
+                    if (parseFloat(g_regions[i][region_start_pos_idx]) < curr_pos)
+                    {
+                        region_dist = curr_pos - parseFloat(g_regions[i][region_start_pos_idx]);
+                        new_region = g_regions[i][region_id_idx];
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found)
+                {
+                    if (region_dist < marker_dist || marker_dist == -1)
+                    {
+                        new_marker = new_region;
+                        select_marker = 'r';
+                    }
+                    select_marker += new_marker;
+                }
+                else
+                    select_marker = ''; // for HOME
+
+                var users_changes = true;
+                if (select_marker != currMarker) {
+                    users_changes = false; // changes come from server
+                    var selection_index = 0;
+
+                    for (i = 0; i < markerSelect.options.length; ++i)
+                    {
+                        if (markerSelect.options[i].id == select_marker)
+                        {
+                            selection_index = markerSelect.options[i].index;
+                            break;
+                        }
+                    }
+
+                    markerSelect.selectedIndex = selection_index;
+                    currMarker = markerSelect.children[markerSelect.selectedIndex].id;
+                    var color = markerSelect.children[markerSelect.selectedIndex].style.color;
                     markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
-                    currMarker = newMarker;
                 }
 
                 // read the selection
                 var selectChoice = markerSelect.selectedIndex;
                 if (selectChoice != selectMarkerOld) {
-                    selectMarkerIdx = selectChoice - 1;
                     selectMarkerOld = selectChoice;
-                    if (!users_changes)
+                    if (users_changes)
                     {
-                        if (selectMarkerIdx == -1) {
+                        if (selectChoice == 0)
                             wwr_req("SET/POS/0");
-                            markerSelect.style.color = markerSelect.children[0].style.color;
-                        }
-                        else {
-                            wwr_req("SET/POS_STR/m" + MarkersAr[selectMarkerIdx][1]);
-                            var color = markerSelect.children[selectMarkerIdx + 1].style.color;
-                            markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
-                        }
+                        else
+                            wwr_req("SET/POS_STR/" + markerSelect.children[selectChoice].id);
+
+                        var color = markerSelect.children[selectChoice].style.color;
+                        markerSelect.style.color = color == '' ? markerSelect.children[0].style.color : color;
                     }
-                    currMarker = selectMarkerIdx;
+                    currMarker = markerSelect[selectChoice].id;
                 }
             }
 
