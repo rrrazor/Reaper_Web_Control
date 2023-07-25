@@ -1,4 +1,4 @@
-<!-- 5.2.0 -->
+<!-- 5.2.1 -->
 <!doctype html>
 <html>
 
@@ -111,6 +111,7 @@
         const region_id_idx = 2;
         const region_start_pos_idx = 3;
         const region_end_pos_idx = 4;
+        const region_color_idx = 5;
 
         wwr_req_recur("NTRACK;TRACK;BEATPOS;TRANSPORT", 10);
         wwr_req_recur("MARKER;REGION", 500);
@@ -862,11 +863,12 @@
                             if (show_current)
                             {
                                 elem_reg_current.setAttributeNS(null, "visibility", "visible");
-                                var color = "#" + (25198720 | 0x1000000).toString(16).substr(-6);
-                                elem_reg_current.setAttributeNS(null, "fill", color);
+                                var col = g_regions[curr_region][region_color_idx];
+                                var rCol = "#" + (col | 0x1000000).toString(16).substr(-6);
+                                elem_reg_current.setAttributeNS(null, "fill", rCol);
                                 var elem_name = document.getElementById('rcName');
                                 elem_name.textContent = g_regions[curr_region][region_name_idx];
-                                elem_name.setAttributeNS(null, "fill", lumaOffset(color));
+                                elem_name.setAttributeNS(null, "fill", lumaOffset(rCol));
 
                                 this['rcNamePos'] = 45.6 + ((273.1 - 45.6) / 2);
                                 document.getElementById('rcName').setAttributeNS(null, "transform", "matrix(1 0 0 1 " + this['rcNamePos'] + " 31)");
