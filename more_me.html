@@ -1127,7 +1127,7 @@
                 {
                     if (current_region != -1)
                     {
-                        if (options[i][options_start_pos_idx] > options[current_region][options_end_pos_idx])
+                        if (Number(options[i][options_start_pos_idx]) > Number(options[current_region][options_end_pos_idx]))
                             current_region = -1;
                     }
 
