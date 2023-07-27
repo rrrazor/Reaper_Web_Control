@@ -1,4 +1,4 @@
-<!-- 5.2.4 -->
+<!-- 5.3.0 -->
 <!doctype html>
 <html>
 
@@ -125,7 +125,8 @@
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], trackHeightsAr = [], trackNumbersAr = [], trackNamesAr = [], trackSendHwCntAr = [], trackSendCntAr = [],
-            trackFlagsAr = [], trackPeakAr = [], recarmCountAr = [], faderConAr = [];
+            trackFlagsAr = [], trackPeakAr = [], recarmCountAr = [], faderConAr = [],
+            bpm_active = false, goto_prev_tempo_pressed = false;
 
         function lumaOffset(c) {
             var c = c.substring(1);
@@ -1108,9 +1109,23 @@
                 instructions.style.display = "none";
             }
 
-            var bpm = currBPM();
-            statusBPMDisplay.textContent = bpm ? bpm : '-';
-            statusBPMDisplay.style.fill = "#a8a8a8";
+            if (playstate != 2)
+            {
+                bpm_active = (playstate & 1) || goto_prev_tempo_pressed;
+                var bpm = '-';
+                if (bpm_active)
+                {
+                    console.log("bpm_active ", bpm_active);
+                    var curr = currBPM();
+                    if (curr)
+                        bpm = curr;
+                    console.log("bpm ", bpm);
+                }
+                statusBPMDisplay.textContent = bpm;
+                statusBPMDisplay.style.fill = "#a8a8a8";
+                if (Math.abs(pos_sec - pos_sec_prev) > 0.000001) // moved from prev position
+                    goto_prev_tempo_pressed = false;
+            }
 
             //----------------------------------
             // Now do things based on what's been DRAWN
@@ -1408,6 +1423,12 @@
         function insert_marker() {
             if (confirm('Insert a new marker at the current position?'))
                 wwr_req(40157)
+        }
+
+        function on_goto_prev_tempo(command)
+        {
+            goto_prev_tempo_pressed = true;
+            wwr_req(command);
         }
     </script>
 </head>
@@ -1749,7 +1770,7 @@
                 font-family="'Open Sans'" font-size="26px"></text>
             <text id="timeUnits" text-anchor="middle" ; transform="matrix(1 0 0 1 155.1 39.4)" fill="#545454"
                 font-family="'Open Sans'" font-size="9px">Hours:Minutes:Seconds:Frames</text>
-            <text id="prevMarker" onmousedown="push_el(this, true);wwr_req(41820)" onmouseup="push_el(this, false)"
+            <text id="prevMarker" onmousedown="push_el(this, true);on_goto_prev_tempo(41820)" onmouseup="push_el(this, false)"
                 x="55" y="37" text-anchor="middle" style="font-size: xx-large;">⏪️</text>
             <text id="nextMarker" onmousedown="push_el(this, true);wwr_req(41821)" onmouseup="push_el(this, false)"
                 x="265" y="37" text-anchor="middle" style="font-size: xx-large;">⏩️</text>
