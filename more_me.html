@@ -1,4 +1,4 @@
-<!-- 5.2.3 -->
+<!-- 5.2.4 -->
 <!doctype html>
 <html>
 
@@ -833,7 +833,7 @@
                                     {
                                         var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
                                         var curr_str = name_el.textContent;
-                                        name_el.textContent = curr_str.slice(0, curr_str.length * ratio);
+                                        name_el.textContent = curr_str.slice(0, curr_str.length * ratio - 1) + '…';
                                     }
 
                                     this['r' + i + 'NamePos'] = this['r' + i + 'StalkLx'] + ((this['r' + i + 'StalkRx'] - this['r' + i + 'StalkLx']) / 2);
@@ -888,6 +888,16 @@
                                 document.getElementById("marker1Number").textContent = mPrevIdx;
                                 document.getElementById("marker1Number").setAttributeNS(null, "fill", lumaOffset(mPrevCol));
                                 document.getElementById("prevMarkerName").textContent = (!mPrevName) ? ("unnamed") : (mPrevName);
+
+                                // trim
+                                var name_el = document.getElementById("prevMarkerName");
+                                var rect_el = document.getElementById("npClip1");
+                                if (name_el.textLength.baseVal.value > rect_el.width.baseVal.value)
+                                {
+                                    var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
+                                    var curr_str = name_el.textContent;
+                                    name_el.textContent = curr_str.slice(0, curr_str.length * ratio - 1) + '…';
+                                }
                             }
                             else { document.getElementById("marker1").setAttributeNS(null, "visibility", "hidden"); }
 
@@ -901,6 +911,16 @@
                                 document.getElementById("marker2Number").textContent = mThisIdx;
                                 document.getElementById("marker2Number").setAttributeNS(null, "fill", lumaOffset(mThisCol));
                                 document.getElementById("atMarkerName").textContent = (!mThisName) ? ("unnamed") : (mThisName);
+
+                                // trim
+                                var name_el = document.getElementById("atMarkerName");
+                                var rect_el = document.getElementById("npClip3");
+                                if (name_el.textLength.baseVal.value > rect_el.width.baseVal.value)
+                                {
+                                    var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
+                                    var curr_str = name_el.textContent;
+                                    name_el.textContent = curr_str.slice(0, curr_str.length * ratio - 1) + '…';
+                                }
                             }
                             else { document.getElementById("marker2").setAttributeNS(null, "visibility", "hidden"); }
 
@@ -914,6 +934,16 @@
                                 document.getElementById("marker3Number").textContent = mNextIdx;
                                 document.getElementById("marker3Number").setAttributeNS(null, "fill", lumaOffset(mNextCol));
                                 document.getElementById("nextMarkerName").textContent = (!mNextName) ? ("unnamed") : (mNextName);
+
+                                // trim
+                                var name_el = document.getElementById("nextMarkerName");
+                                var rect_el = document.getElementById("npClip5");
+                                if (name_el.textLength.baseVal.value > rect_el.width.baseVal.value)
+                                {
+                                    var ratio = rect_el.width.baseVal.value / name_el.textLength.baseVal.value;
+                                    var curr_str = name_el.textContent;
+                                    name_el.textContent = curr_str.slice(0, curr_str.length * ratio - 1) + '…';
+                                }
                             }
                             else { document.getElementById("marker3").setAttributeNS(null, "visibility", "hidden"); }
 
