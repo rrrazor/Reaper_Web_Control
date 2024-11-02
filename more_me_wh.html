@@ -1,5 +1,4 @@
-<!-- 6.0.1 -->
-<!-- Fork from v7.22 -->
+<!-- 6.1.0 -->
 <!doctype html>
 <html><head>
 <meta charset="utf-8" />
@@ -9,7 +8,9 @@
 
 <title>MoreMe Personal Monitor</title>
 <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700" rel="stylesheet" type="text/css">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <script src="main.js"></script>
+<script src="common_func.js"></script>
 
 <style type="text/css">
     
@@ -67,43 +68,7 @@ wwr_req_recur("NTRACK;TRACK",10);
 wwr_start(); 
     
 var nTrack = 0, nTrackOld = 0, trackNameAr = [], trackRcvCntAr = [], trackHwOutCntAr = [], receiveIdxAr = [], receiveVolAr = [], receiveMuteAr = [], trackColoursAr = [], trackIsMonitorAr = [], trackIsMonitorArOld = [], selectChoiceIdx = 0, selectChoiceOld = "", mouseDown = 0, sendOutputdB = 0;    
-    
-function mouseDownEventHandler(msg) {
-    return function(e) {
-        if (typeof e == 'undefined') e=event;
-        if (e.preventDefault) e.preventDefault();
-        wwr_req(msg);
-        return false;
-        }
-    }
- 
-function mouseUpHandler(event){mouseDown = 0;}
-function mouseDownHandler(event, target){mouseDown = 1;}
-function mouseLeaveHandler(event){mouseDown = 0;}   
-function mouseMoveHandler(event){
-    if (mouseDown != 1){ return; }
-    else {
-        var volTrackWidth = (this.getBoundingClientRect()["width"]);
-        var volThumbWidth = volTrackWidth * 0.14375;
-        var volThumbTrackWidth = (volTrackWidth - volThumbWidth);
-        var volThumbTrackLEdge = this.getBoundingClientRect()["left"];
-        offsetX = (event.pageX - volThumbTrackLEdge - (volThumbWidth / 2));
-
-        if (event.changedTouches != undefined) { //we're doing touch stuff
-            offsetX = (event.changedTouches[0].pageX - volThumbTrackLEdge - (volThumbWidth / 2));
-            }
-        if(offsetX<0){offsetX=0};
-        if(offsetX>volThumbTrackWidth){offsetX=volThumbTrackWidth};
-
-        var volThumb = this.getElementsByClassName("fader")[0];
-        var offsetX320 = offsetX * (320 / volTrackWidth);
-        var vteMove320 = "translate(" + offsetX320 + " 0)";
-        volThumb.setAttributeNS(null, "transform", vteMove320);
-        var volOutput = (offsetX  / volThumbTrackWidth);
-        var volOutputdB = Math.pow(volOutput, 4) * 4;
-        wwr_req("SET/TRACK/" + selectChoiceIdx  + "/SEND/" + -this.id + "/VOL/" + volOutputdB)
-        }
-    }    
+   
 function sendMouseMoveHandler(event){
     if (mouseDown != 1){ return; }
     else {
@@ -130,36 +95,7 @@ function sendMouseMoveHandler(event){
         wwr_req("SET/TRACK/" + selectChoiceIdx + "/SEND/" + -this.id + "/VOL/" + sendOutputdB)
         }
     }
-    
-function sendMouseUpHandler(event){
-    wwr_req("SET/TRACK/" + selectChoiceIdx + "/SEND/" + -this.id + "/VOL/" + sendOutputdB + "e");
-    mouseDown = 0;
-    }    
 
-function volFaderConect(content, thumb){
-    content.addEventListener("mousemove", mouseMoveHandler, false);
-    content.addEventListener("touchmove", mouseMoveHandler, false);
-    content.addEventListener("mouseleave", mouseLeaveHandler, false);
-    content.addEventListener("mouseup", mouseUpHandler, false);
-    content.addEventListener("touchend", mouseUpHandler, false);
-    thumb.addEventListener("mousedown", function (event) {mouseDownHandler(event, event.srcElement)}, false);
-    thumb.addEventListener('touchstart', function(event){
-        if (event.touches.length > 0) mouseDownHandler(event, event.srcElement);
-        event.preventDefault(); }, false);
-    }    
-    
-function sendConect(content, thumb){
-    content.addEventListener("mousemove", sendMouseMoveHandler, false);
-    content.addEventListener("touchmove", sendMouseMoveHandler, false);
-    content.addEventListener("mouseleave", mouseLeaveHandler, false);
-    content.addEventListener("mouseup", sendMouseUpHandler, false);
-    content.addEventListener("touchend", sendMouseUpHandler, false);
-    thumb.addEventListener("mousedown", function (event) {mouseDownHandler(event, event.srcElement)}, false);
-    thumb.addEventListener('touchstart', function(event){
-        if (event.touches.length > 0) mouseDownHandler(event, event.srcElement);
-        event.preventDefault(); }, false);
-    }    
-    
 function wwr_onreply(results) {
    var resultsDisplay = document.getElementById("_results");
     if(resultsDisplay!=null){
@@ -202,10 +138,17 @@ for (var x=0;x<ar.length;x++) {
             
         case "SEND":
             if (tok.length > 3) {
+                var hardware = false;
                 var f = -tok[2] - 1;
                 receiveIdxAr[f] = tok[6];
                 receiveVolAr[f] = tok[4];
-                if(tok[6]==-1){var hardVol = tok[4]}
+                if (tok[6] == -1)
+                {
+                    var hardVol = tok[4];
+                    var hardware_vol = document.getElementById("hardware_vol");
+                    hardware_vol.textContent = mkvolstr(hardVol);
+                    break;
+                }
                 if(tok[3]&8){receiveMuteAr[f] = 1}
                 else{receiveMuteAr[f] = 0}
                 }
@@ -271,15 +214,24 @@ for (var x=0;x<ar.length;x++) {
     var cloneTrackSend = document.getElementById("trackSendSvg").cloneNode(true);
     var drawnReceives = trackRcvCntAr[selectChoiceIdx];
     var drawnReceivesDone = receivesContent.childNodes.length;
+    const event = new UIEvent("mix_done");
+    var body = document.getElementById("body");
+
     if (drawnReceives<drawnReceivesDone || drawnReceives==null){
-        if(receivesContent.lastChild){receivesContent.removeChild(receivesContent.lastChild)}
+        if (receivesContent.lastChild)
+        {
+            receivesContent.removeChild(receivesContent.lastChild);
+            body.dispatchEvent(event);
         }
-    if (drawnReceives>drawnReceivesDone){
+    }
+    if (drawnReceives>drawnReceivesDone)
+    {
         var sendDiv = document.createElement("div");
         sendDiv.className = ("sendDiv");
         receivesContent.appendChild(sendDiv);
         sendDiv.appendChild(cloneTrackSend);
-        }
+        body.dispatchEvent(event);
+    }
     if (drawnReceives==null && faderContent.innerHTML){
         faderContent.innerHTML=""
         instructions.style.display = "block";
@@ -369,7 +321,7 @@ function init(){
 }    
 </script>
 </head>
-<body>
+<body id="body" onLoad="init()">
 
 <div id="colWrap">
 
@@ -440,6 +392,8 @@ Don't forget - you'll probably want to disable its Master Send.<br><br>
             <path opacity="0.33" fill="url(#fGrad5)" d="M26,35.5h1v-1h-1c-0.6,0-1-0.4-1-1v-31c0-0.6,0.4-1,1-1
                 h1v-1h-1c-1,0-1.8,0.7-2,1.6v31.8C24.2,34.8,25,35.5,26,35.5z"/>
         </g>
+        <text id="hardware_vol" text-anchor="start" ; transform="matrix(1 0 0 1 10 39.4)" fill="#A3A3A3"
+            font-family="'Open Sans'" font-size="12px">xx dB</text>
         </svg>  
     </element>
    
