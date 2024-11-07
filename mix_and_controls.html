@@ -1,4 +1,4 @@
-<!-- 6.1.0 -->
+<!-- 6.1.1 -->
 <!doctype html>
 <html>
 
@@ -94,6 +94,10 @@
         const region_start_pos_idx = 3;
         const region_end_pos_idx = 4;
         const region_color_idx = 5;
+        const marker_name_idx = 1;
+        const marker_id_idx = 2;
+        const marker_pos_idx = 3;
+        const marker_color_idx = 4;
 
         wwr_req_recur("TRACK;BEATPOS;TRANSPORT", 10);
         wwr_req_recur("MARKER;REGION", 500);
@@ -102,7 +106,7 @@
         wwr_start();
 
         var nTrack = 0, nTrackOld = 0,
-            pos_sec = 0.0, pos_sec_prev = 0.0, pos_beat = 0, pos_beat_prev = 0, MarkersAr = [], currMarker = -1, selectMarkerOld = -1,
+            pos_sec = 0.0, pos_sec_prev = 0.0, pos_beat = 0, pos_beat_prev = 0, currMarker = -1, selectMarkerOld = -1,
 
             last_transport_state = -1, drawnSig = 0, drawnBeat = 0, playPosSeconds = 0, newPos = -1, recarmCount = 0, last_time_str = "",
             statusPosition = [], statusPositionAr = [], recarmCountAr = [];
@@ -183,7 +187,7 @@
             for (var x = 0; x < ar.length; x++) {
                 var tok = ar[x].split("\t");
                 if (tok.length > 0) switch (tok[0]) {
-                    case "TRACK":
+                    case "TRACK": // TRACK \t tracknumber \t trackname \t trackflags \t volume \t pan \t last_meter_peak \t last_meter_pos \t width/pan2 \t panmode \t sendcnt \t recvcnt \t hwoutcnt \t color
                         idx = parseInt(tok[1]);
 
                         if (tok[3] & 64) { recarmCountAr[idx] = 1 } else { recarmCountAr[idx] = 0 }
@@ -219,18 +223,15 @@
 
                         break;
 
-                    case "MARKER":
-                        var marker = [tok[1], tok[2], tok[3], toColor(tok[4])];
-                        MarkersAr.push(marker);
+                    case "MARKER": // MARKER \t name \t ID \t position [\t color]
                         g_markers.push(tok);
                         break;
 
                     case "MARKER_LIST":
-                        MarkersAr = [];
                         g_markers = [];
                         break;
 
-                    case "TRANSPORT":
+                    case "TRANSPORT": // TRANSPORT \t playstate \t position_seconds \t isRepeatOn \t position_string \t position_string_beats
                         if (tok.length > 4) {
                             var backLoaded = document.getElementById("backLoad");
                             if (backLoaded != null) {
@@ -278,12 +279,11 @@
                     case "REGION_LIST":
                         g_regions = [];
                         break;
-                    case "REGION":
+                    case "REGION": // REGION \t name \t ID \t start-position \t end-position [\t color]
                         g_regions.push(tok);
                         break;
                     case "MARKER_LIST_END":
                         var pos = parseFloat(playPosSeconds);
-                        var previ = -1, thisi = -1, nexti = -1;
                         break;
 
                     case "REGION_LIST_END":
@@ -593,7 +593,7 @@
                             newMrMapLength = mrMapAr.length;
                         }
                         break;
-                    case "CMDSTATE":
+                    case "CMDSTATE": // CMDSTATE \t command_id \t state
                         if (tok.length == 3)
                         {
                             if (tok[1] == cmd_pre_roll_play)
@@ -623,7 +623,6 @@
             var statusBPMDisplay = document.getElementById("bpm_status");
 
             var bpm = currBPM();
-            console.log('bpm = ', bpm);
             statusBPMDisplay.textContent = bpm ? bpm : '-';
             statusBPMDisplay.style.fill = "#a8a8a8";
 
@@ -656,10 +655,11 @@
                     options.push([start_pos, end_pos, option, false]);
                 }
 
-                for (x = 0; x < MarkersAr.length; x++) {
+                for (x = 0; x < g_markers.length; x++) {
                     var option = document.createElement("option");
-                    [name, id, position, color] = MarkersAr[x];
+                    [tag, name, id, position, color_num] = g_markers[x];
                     option.text = 'M' + id + ". " + name;
+                    var color = toColor(color_num);
                     option.style.color = color == '' ? "#A9ABAB" : color;
                     option.id = 'm' + id;
                     options.push([position, position, option, true]);
@@ -697,11 +697,13 @@
                 var curr_pos = parseFloat(pos_sec) + 0.0001;
                 var marker_dist = -1;
 
-                for (i = MarkersAr.length - 1; i >= 0; --i) {
-                    [name, id, position, color] = MarkersAr[i];
-                    if (parseFloat(position) < curr_pos) {
-                        marker_dist = curr_pos - parseFloat(position);
-                        new_marker = id;
+                for (i = g_markers.length - 1; i >= 0; --i) {
+                    [tag, name, id, position, color] = g_markers[i];
+                    const marker = g_markers[i];
+                    const pos_float = parseFloat(marker[marker_pos_idx]);
+                    if (pos_float < curr_pos) {
+                        marker_dist = curr_pos - pos_float;
+                        new_marker = marker[marker_id_idx];
                         found = true;
                         break;
                     }
