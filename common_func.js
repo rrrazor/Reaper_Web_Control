@@ -1,4 +1,4 @@
-// 6.1.3
+// 6.1.4
 function mouseDownEventHandler(msg) {
     return function (e) {
         if (typeof e == 'undefined') e = event;
@@ -11,31 +11,6 @@ function mouseDownEventHandler(msg) {
 function mouseUpHandler(event){mouseDown = 0;}
 function mouseDownHandler(event, target){mouseDown = 1;}
 function mouseLeaveHandler(event){mouseDown = 0;}
-function mouseMoveHandler(event){
-    if (mouseDown != 1){ return; }
-    else
-    {
-        var volTrackWidth = (this.getBoundingClientRect()["width"]);
-        var volThumbWidth = volTrackWidth * 0.14375;
-        var volThumbTrackWidth = (volTrackWidth - volThumbWidth);
-        var volThumbTrackLEdge = this.getBoundingClientRect()["left"];
-        offsetX = (event.pageX - volThumbTrackLEdge - (volThumbWidth / 2));
-
-        if (event.changedTouches != undefined) { //we're doing touch stuff
-            offsetX = (event.changedTouches[0].pageX - volThumbTrackLEdge - (volThumbWidth / 2));
-            }
-        if(offsetX<0){offsetX=0};
-        if(offsetX>volThumbTrackWidth){offsetX=volThumbTrackWidth};
-
-        var volThumb = this.firstChild.getElementsByClassName("fader")[0];
-        var offsetX320 = offsetX * (320 / volTrackWidth);
-        var vteMove320 = "translate(" + offsetX320 + " 0)";
-        volThumb.setAttributeNS(null, "transform", vteMove320);
-        var volOutput = (offsetX  / volThumbTrackWidth);
-        var volOutputdB = Math.pow(volOutput, 4) * 4;
-        wwr_req("SET/TRACK/" + this.id + "/VOL/" + volOutputdB)
-    }
-}
 
 function volFaderConect(content, thumb) {
     content.addEventListener("mousemove", mouseMoveHandler, false);
