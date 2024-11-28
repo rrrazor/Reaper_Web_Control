@@ -1,3 +1,4 @@
+// 6.1.3
 function mouseDownEventHandler(msg) {
     return function (e) {
         if (typeof e == 'undefined') e = event;
@@ -34,11 +35,6 @@ function mouseMoveHandler(event){
         var volOutputdB = Math.pow(volOutput, 4) * 4;
         wwr_req("SET/TRACK/" + this.id + "/VOL/" + volOutputdB)
     }
-}
-
-function sendMouseUpHandler(event) {
-    wwr_req("SET/TRACK/" + selectChoiceIdx + "/SEND/" + -this.id + "/VOL/" + sendOutputdB + "e");
-    mouseDown = 0;
 }
 
 function volFaderConect(content, thumb) {

@@ -1,4 +1,4 @@
-<!-- 6.1.2 -->
+<!-- 6.1.3 -->
 <!doctype html>
 <html>
 
@@ -148,6 +148,11 @@
             }
         }
 
+        function sendMouseUpHandler(event) {
+            wwr_req("SET/TRACK/" + selectChoiceIdx + "/SEND/" + -this.id + "/VOL/" + sendOutputdB + "e");
+            mouseDown = 0;
+        }
+
         function toColor(num) {
             num >>>= 0;
             var b = num & 0xFF,
@@ -187,6 +192,7 @@
         {
             return last_transport_state & 1 ? true : false;
         }
+
         function wwr_onreply(results) {
             var resultsDisplay = document.getElementById("_results");
             if (resultsDisplay != null) {
